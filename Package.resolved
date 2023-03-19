@@ -1,0 +1,32 @@
+{
+  "pins" : [
+    {
+      "identity" : "csdataprotocol",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/CharlesJS/CSDataProtocol",
+      "state" : {
+        "revision" : "d63a07c50ae31256baa67e6f266ab36c4b16309f",
+        "version" : "0.1.0"
+      }
+    },
+    {
+      "identity" : "cserrors",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/CharlesJS/CSErrors",
+      "state" : {
+        "revision" : "13227af3fb20e98a603bd4f55bddfabcd82f7d17",
+        "version" : "1.2.4"
+      }
+    },
+    {
+      "identity" : "dataparser",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/CharlesJS/DataParser",
+      "state" : {
+        "revision" : "d3c52728ae4799c7a2554957df53071e2b56c6df",
+        "version" : "0.3.2"
+      }
+    }
+  ],
+  "version" : 2
+}
