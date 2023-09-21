@@ -21,7 +21,14 @@ func emulateOSVersion(_ version: Int, closure: () throws -> Void) rethrows {
     try closure()
 }
 
-func versionCheck(_ version: Int) -> Bool { version >= emulatedVersion }
+func emulateOSVersionAsync(_ version: Int, closure: () async throws -> Void) async throws {
+    emulatedVersion = version
+    defer { emulatedVersion = .max }
+
+    try await closure()
+}
+
+func versionCheck(_ version: Int) -> Bool { emulatedVersion >= version }
 #else
 @inline(__always) func versionCheck(_: Int) -> Bool { true }
 #endif
@@ -67,13 +74,15 @@ extension String {
     internal init(hfsTypeCode: UInt32) {
         var bigInt = hfsTypeCode.bigEndian
 
-        self = withUnsafeBytes(of: &bigInt) { String($0.map { Self.convertToMacOSRoman($0) }) }
+        self = withUnsafeBytes(of: &bigInt) {
+            String($0[..<($0.firstIndex(of: 0) ?? $0.endIndex)].map { Self.convertToMacOSRoman($0) })
+        }
     }
 
     internal var hfsTypeCode: UInt32? {
         if self.isEmpty { return 0 }
 
-        var bytes = self.prefix(4).map { Self.convertFromMacOSRoman($0) }
+        guard var bytes = self.prefix(4).map({ Self.convertFromMacOSRoman($0) }) as? [UInt8] else { return nil }
         while bytes.count < 4 {
             bytes.append(0x20)
         }

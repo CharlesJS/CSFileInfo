@@ -9,7 +9,7 @@ import DataParser
 import CSDataProtocol
 
 extension FileInfo {
-    public struct FinderInfo {
+    public struct FinderInfo: Codable {
         public enum LabelColor: UInt8 {
             case none = 0
             case grey = 1
@@ -21,7 +21,7 @@ extension FileInfo {
             case orange = 7
         }
 
-        public struct Rect {
+        public struct Rect: Codable, Equatable {
             public static let zero = Rect(top: 0, left: 0, bottom: 0, right: 0)
 
             public let top: Int16
@@ -57,7 +57,7 @@ extension FileInfo {
             }
         }
 
-        public struct Point {
+        public struct Point: Codable, Equatable {
             public static let zero = Point(v: 0, h: 0)
 
             public let v: Int16
@@ -69,6 +69,8 @@ extension FileInfo {
                         buffer[0] = self.v.bigEndian
                         buffer[1] = self.h.bigEndian
                     }
+
+                    count = 4
                 }
             }
 
@@ -94,7 +96,7 @@ extension FileInfo {
             public static let volumeOrDirectory: UInt32 = 0x4d414353 // 'MACS'
         }
 
-        public struct FinderFlags: OptionSet {
+        public struct FinderFlags: OptionSet, Codable {
             public static let isOnDesktop               = FinderFlags(rawValue: 0x0001)
             private static let colorMask                = UInt16(0x000e)
             public static let isExtensionHidden         = FinderFlags(rawValue: 0x0010)
@@ -109,7 +111,7 @@ extension FileInfo {
             public static let isAlias                   = FinderFlags(rawValue: 0x8000)
 
             public var labelColor: LabelColor {
-                get { LabelColor(rawValue: UInt8((self.rawValue & FinderFlags.colorMask) >> 1)) ?? .none }
+                get { LabelColor(rawValue: UInt8((self.rawValue & FinderFlags.colorMask) >> 1))! }
                 set {
                     self.rawValue = (self.rawValue & ~FinderFlags.colorMask) |
                     (UInt16(newValue.rawValue << 1) & FinderFlags.colorMask)
@@ -150,7 +152,7 @@ extension FileInfo {
             public init(rawValue: UInt16) { self.rawValue = rawValue }
         }
 
-        public struct ExtendedFinderFlags: OptionSet {
+        public struct ExtendedFinderFlags: OptionSet, Codable {
             public static let extendedFlagsAreInvalid = ExtendedFinderFlags(rawValue: 0x8000)
             public static let hasCustomBadge          = ExtendedFinderFlags(rawValue: 0x0100)
             public static let isBusy                  = ExtendedFinderFlags(rawValue: 0x0080)
@@ -170,7 +172,7 @@ extension FileInfo {
         }
 
         private var typeSpecificData: TypeSpecificData
-        private enum TypeSpecificData {
+        private enum TypeSpecificData: Codable {
             case file(isSymbolicLink: Bool, typeCode: UInt32, creatorCode: UInt32, reserved: UInt64)
             case directory(isMountPoint: Bool, windowBounds: Rect, scrollPosition: Point, reserved: UInt32)
 
@@ -234,6 +236,15 @@ extension FileInfo {
                     assert(data.count == 32)
 
                     return data
+                }
+            }
+
+            var isDirectory: Bool {
+                switch self {
+                case .file:
+                    return false
+                case .directory:
+                    return true
                 }
             }
         }
@@ -333,19 +344,47 @@ extension FileInfo {
         public var extendedFinderFlags: ExtendedFinderFlags
         public var iconLocation: Point
         public var windowBounds: Rect {
-            switch self.typeSpecificData {
-            case let .directory(isMountPoint: _, windowBounds: bounds, scrollPosition: _, reserved: _):
-                return bounds
-            default:
-                return .zero
+            get {
+                switch self.typeSpecificData {
+                case .directory(isMountPoint: _, windowBounds: let bounds, scrollPosition: _, reserved: _):
+                    return bounds
+                default:
+                    return .zero
+                }
+            }
+            set {
+                switch self.typeSpecificData {
+                case .directory(isMountPoint: let mp, windowBounds: _, scrollPosition: let sp, reserved: let rsrv):
+                    self.typeSpecificData = .directory(
+                        isMountPoint: mp,
+                        windowBounds: newValue,
+                        scrollPosition: sp,
+                        reserved: rsrv
+                    )
+                default: break
+                }
             }
         }
         public var scrollPosition: Point {
-            switch self.typeSpecificData {
-            case let .directory(isMountPoint: _, windowBounds: _, scrollPosition: position, reserved: _):
-                return position
-            default:
-                return .zero
+            get {
+                switch self.typeSpecificData {
+                case .directory(isMountPoint: _, windowBounds: _, scrollPosition: let position, reserved: _):
+                    return position
+                default:
+                    return .zero
+                }
+            }
+            set {
+                switch self.typeSpecificData {
+                case .directory(isMountPoint: let mp, windowBounds: let wb, scrollPosition: _, reserved: let rsrv):
+                    self.typeSpecificData = .directory(
+                        isMountPoint: mp,
+                        windowBounds: wb,
+                        scrollPosition: newValue,
+                        reserved: rsrv
+                    )
+                default: break
+                }
             }
         }
         public var putAwayFolderID: UInt32
@@ -451,33 +490,13 @@ extension FileInfo {
 
         internal mutating func update(from: FinderInfo, objectType: ObjectType, mountStatus: MountStatus) {
             var newInfo = from
+            let isDirectory = (objectType == .directory)
 
-            let typeMatches: Bool
-            switch self.typeSpecificData {
-            case .file:
-                switch newInfo.typeSpecificData {
-                case .file:
-                    typeMatches = true
-                case .directory:
-                    typeMatches = false
-                }
-            case .directory:
-                switch newInfo.typeSpecificData {
-                case .file:
-                    typeMatches = false
-                case .directory:
-                    typeMatches = true
-                }
-            }
-
-            if !typeMatches {
+            if newInfo.typeSpecificData.isDirectory != isDirectory {
                 let data = newInfo.typeSpecificData.data
 
-                if let newData = try? TypeSpecificData(objectType: objectType, mountStatus: mountStatus, data: data) {
-                    newInfo.typeSpecificData = newData
-                } else {
-                    newInfo.typeSpecificData = self.typeSpecificData
-                }
+                // This initializer can only fail from insufficient data count, which should be impossible here
+                newInfo.typeSpecificData = try! .init(objectType: objectType, mountStatus: mountStatus, data: data)
             }
 
             self = newInfo
@@ -487,6 +506,8 @@ extension FileInfo {
 
 extension FileInfo.FinderInfo: Equatable {
     public static func ==(lhs: FileInfo.FinderInfo, rhs: FileInfo.FinderInfo) -> Bool {
-        ContiguousArray(lhs.data) == ContiguousArray(rhs.data)
+        ContiguousArray(lhs.data) == ContiguousArray(rhs.data) &&
+        lhs.typeSpecificData.isDirectory == rhs.typeSpecificData.isDirectory
     }
 }
+

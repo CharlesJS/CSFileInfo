@@ -1,0 +1,4 @@
+module Membership {
+    umbrella header "membership.h"
+    export *
+}

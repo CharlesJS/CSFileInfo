@@ -5,6 +5,9 @@
 //  Created by Charles Srstka on 3/12/23.
 //
 
+import CSDataProtocol_Foundation
+import CSErrors_Foundation
+import DataParser_Foundation
 import Foundation
 
 extension Date {
