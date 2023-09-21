@@ -17,7 +17,7 @@ public enum UserOrGroup: Hashable, CustomStringConvertible {
         var id: id_t = 0
         var type: Int32 = 0
 
-        try callPOSIXFunction(expect: .zero) {
+        try callPOSIXFunction(expect: .zero, errorFrom: .returnValue) {
             var uuid = uuid
 
             return withUnsafePointer(to: &uuid) { mbr_uuid_to_id($0, &id, &type) }
@@ -29,6 +29,7 @@ public enum UserOrGroup: Hashable, CustomStringConvertible {
         case ID_TYPE_GID:
             self = .group(Group(id: id))
         default:
+            // should not be reachable in practice
             throw FileInfo.Error.unknownError
         }
     }
@@ -82,9 +83,9 @@ public struct User: Hashable, CustomStringConvertible {
             self.id = pw.pointee.pw_uid
         } else if errno != 0 {
             throw errno()
+        } else {
+            return nil
         }
-
-        return nil
     }
 
     public let id: uid_t
@@ -109,7 +110,11 @@ public struct User: Hashable, CustomStringConvertible {
 
     public var uuid: uuid_t {
         get throws {
-            try callPOSIXFunction(expect: .zero) { mbr_uid_to_uuid(self.id, $0) }
+            try callPOSIXFunction(expect: .zero, errorFrom: .returnValue) {
+                $0.withMemoryRebound(to: UInt8.self, capacity: MemoryLayout<uuid_t>.size) {
+                    mbr_uid_to_uuid(self.id, $0)
+                }
+            }
         }
     }
 
@@ -139,9 +144,9 @@ public struct Group: Hashable, CustomStringConvertible {
             self.id = grp.pointee.gr_gid
         } else if errno != 0 {
             throw errno()
+        } else {
+            return nil
         }
-
-        return nil
     }
 
     public let id: gid_t
@@ -166,7 +171,11 @@ public struct Group: Hashable, CustomStringConvertible {
 
     public var uuid: uuid_t {
         get throws {
-            try callPOSIXFunction(expect: .zero) { mbr_gid_to_uuid(self.id, $0) }
+            try callPOSIXFunction(expect: .zero, errorFrom: .returnValue) {
+                $0.withMemoryRebound(to: UInt8.self, capacity: MemoryLayout<uuid_t>.size) {
+                    mbr_gid_to_uuid(self.id, $0)
+                }
+            }
         }
     }
 

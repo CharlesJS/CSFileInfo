@@ -12,7 +12,7 @@ import Glibc
 #endif
 
 extension FileInfo {
-    public enum ObjectType: Equatable {
+    public enum ObjectType: Codable, Equatable {
         case noType
         case regular
         case directory
@@ -47,7 +47,7 @@ extension FileInfo {
         }
     }
 
-    public enum ObjectTag: Equatable {
+    public enum ObjectTag: Codable, Equatable {
         case none
         case ufs
         case nfs
@@ -74,6 +74,8 @@ extension FileInfo {
         case cifs
         case other
         case apfs
+        case lockerfs
+        case bindfs
         case unknown(fsobj_tag_t)
 
         internal init(_ tag: fsobj_tag_t) {
@@ -130,13 +132,17 @@ extension FileInfo {
                 self = .other
             case VT_APFS:
                 self = .apfs
+            case VT_LOCKERFS:
+                self = .lockerfs
+            case VT_BINDFS:
+                self = .bindfs
             default:
                 self = .unknown(tag)
             }
         }
     }
 
-    public struct MountStatus: OptionSet {
+    public struct MountStatus: OptionSet, Codable {
         public static let isMountPoint = MountStatus(rawValue: UInt32(DIR_MNTSTATUS_MNTPOINT))
         public static let isAutomountTrigger = MountStatus(rawValue: UInt32(DIR_MNTSTATUS_TRIGGER))
 
@@ -144,7 +150,7 @@ extension FileInfo {
         public init(rawValue: UInt32) { self.rawValue = rawValue }
     }
 
-    public struct POSIXFlags: OptionSet {
+    public struct POSIXFlags: OptionSet, Codable {
         public static let doNotDump = POSIXFlags(rawValue: UInt32(UF_NODUMP))
         public static let isImmutable = POSIXFlags(rawValue: UInt32(UF_IMMUTABLE))
         public static let isAppendOnly = POSIXFlags(rawValue: UInt32(UF_APPEND))
@@ -163,7 +169,19 @@ extension FileInfo {
         public init(rawValue: UInt32) { self.rawValue = rawValue }
     }
 
-    public struct UserAccess: OptionSet {
+    public struct ExtendedFlags: OptionSet, Codable {
+        public static let mayShareBlocks = ExtendedFlags(rawValue: UInt64(EF_MAY_SHARE_BLOCKS))
+        public static let noExtendedAttributes = ExtendedFlags(rawValue: UInt64(EF_NO_XATTRS))
+        public static let isSyncRoot = ExtendedFlags(rawValue: UInt64(EF_IS_SYNC_ROOT))
+        public static let isPurgeable = ExtendedFlags(rawValue: UInt64(EF_IS_PURGEABLE))
+        public static let isSparse = ExtendedFlags(rawValue: UInt64(EF_IS_SPARSE))
+        public static let isSynthetic = ExtendedFlags(rawValue: UInt64(EF_IS_SYNTHETIC))
+
+        public let rawValue: UInt64
+        public init(rawValue: UInt64) { self.rawValue = rawValue }
+    }
+
+    public struct UserAccess: OptionSet, Codable {
         public static let canRead = UserAccess(rawValue: UInt32(R_OK))
         public static let canWrite = UserAccess(rawValue: UInt32(W_OK))
         public static let canExecute = UserAccess(rawValue: UInt32(X_OK))
@@ -172,8 +190,8 @@ extension FileInfo {
         public init(rawValue: UInt32) { self.rawValue = rawValue }
     }
 
-    public struct VolumeCapabilities: Equatable {
-        public struct Format: OptionSet {
+    public struct VolumeCapabilities: Equatable, Codable {
+        public struct Format: OptionSet, Codable {
             public static let persistentObjectIDs = Format(rawValue: UInt32(VOL_CAP_FMT_PERSISTENTOBJECTIDS))
             public static let symbolicLinks = Format(rawValue: UInt32(VOL_CAP_FMT_SYMBOLICLINKS))
             public static let hardLinks = Format(rawValue: UInt32(VOL_CAP_FMT_HARDLINKS))
@@ -193,12 +211,15 @@ extension FileInfo {
             public static let supports64BitObjectIDs = Format(rawValue: UInt32(VOL_CAP_FMT_64BIT_OBJECT_IDS))
             public static let noImmutableFiles = Format(rawValue: UInt32(VOL_CAP_FMT_NO_IMMUTABLE_FILES))
             public static let noPermissions = Format(rawValue: UInt32(VOL_CAP_FMT_NO_PERMISSIONS))
+            public static let sharedSpace = Format(rawValue: UInt32(VOL_CAP_FMT_SHARED_SPACE))
+            public static let volumeGroups = Format(rawValue: UInt32(VOL_CAP_FMT_VOL_GROUPS))
+            public static let sealed = Format(rawValue: UInt32(VOL_CAP_FMT_SEALED))
 
             public let rawValue: UInt32
             public init(rawValue: UInt32) { self.rawValue = rawValue }
         }
 
-        public struct Interfaces: OptionSet {
+        public struct Interfaces: OptionSet, Codable {
             public static let searchfs = Interfaces(rawValue: UInt32(VOL_CAP_INT_SEARCHFS))
             public static let attrlist = Interfaces(rawValue: UInt32(VOL_CAP_INT_ATTRLIST))
             public static let nfsExport = Interfaces(rawValue: UInt32(VOL_CAP_INT_NFSEXPORT))
@@ -218,6 +239,7 @@ extension FileInfo {
             public static let namedStreams = Interfaces(rawValue: UInt32(VOL_CAP_INT_NAMEDSTREAMS))
             public static let renameSwap = Interfaces(rawValue: UInt32(VOL_CAP_INT_RENAME_SWAP))
             public static let exclusiveRename = Interfaces(rawValue: UInt32(VOL_CAP_INT_RENAME_EXCL))
+            public static let failRenameIfOpen = Interfaces(rawValue: UInt32(VOL_CAP_INT_RENAME_OPENFAIL))
 
             public let rawValue: UInt32
             public init(rawValue: UInt32) { self.rawValue = rawValue }
@@ -226,13 +248,13 @@ extension FileInfo {
         public let format: Format
         public let interfaces: Interfaces
 
-        internal init(capabilities: vol_capabilities_attr_t, validOnly: Bool) {
-            if validOnly {
-                self.format = Format(rawValue: capabilities.valid.0)
-                self.interfaces = Interfaces(rawValue: capabilities.valid.1)
-            } else {
+        internal init(capabilities: vol_capabilities_attr_t, implementedOnly: Bool) {
+            if implementedOnly {
                 self.format = Format(rawValue: capabilities.capabilities.0 & capabilities.valid.0)
                 self.interfaces = Interfaces(rawValue: capabilities.capabilities.1 & capabilities.valid.1)
+            } else {
+                self.format = Format(rawValue: capabilities.valid.0)
+                self.interfaces = Interfaces(rawValue: capabilities.valid.1)
             }
         }
     }

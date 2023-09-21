@@ -8,6 +8,7 @@
 
 import CSDataProtocol
 import CSErrors
+import ExtrasBase64
 import System
 
 #if canImport(Darwin)
@@ -16,380 +17,268 @@ import Darwin
 import Glibc
 #endif
 
-public struct AccessControlList: CustomDebugStringConvertible {
+public struct AccessControlList: RangeReplaceableCollection, CustomStringConvertible {
+    public typealias Element = Entry
+    public typealias Index = Int
+
     public struct Entry: Hashable, CustomStringConvertible {
         public enum Rule: UInt8 {
-            case unknown = 0
             case allow = 1
             case deny = 2
         }
 
-        public var owner: UserOrGroup? {
-            get {
-                do {
-                    let rule = self.rule
+        public struct Permissions: OptionSet, Hashable, CustomStringConvertible {
+            /// The following permissions apply only to files
+            public static let readData = Permissions(ACL_READ_DATA)
+            public static let writeData = Permissions(ACL_WRITE_DATA)
+            public static let appendData = Permissions(ACL_APPEND_DATA)
+            public static let execute = Permissions(ACL_EXECUTE)
 
-                    if rule != .allow && rule != .deny {
-                        return nil
+            /// The following permissions apply only to directories
+            public static let listDirectory = Permissions(ACL_LIST_DIRECTORY)
+            public static let addFile = Permissions(ACL_ADD_FILE)
+            public static let addSubdirectory = Permissions(ACL_ADD_SUBDIRECTORY)
+            public static let search = Permissions(ACL_SEARCH)
+            public static let deleteChild = Permissions(ACL_DELETE_CHILD)
+
+            /// The following permissions apply to both files and directories
+            public static let delete = Permissions(ACL_DELETE)
+            public static let readAttributes = Permissions(ACL_READ_ATTRIBUTES)
+            public static let writeAttributes = Permissions(ACL_WRITE_ATTRIBUTES)
+            public static let readExtendedAttributes = Permissions(ACL_READ_EXTATTRIBUTES)
+            public static let writeExtendedAttributes = Permissions(ACL_WRITE_EXTATTRIBUTES)
+            public static let readSecurity = Permissions(ACL_READ_SECURITY)
+            public static let writeSecurity = Permissions(ACL_WRITE_SECURITY)
+            public static let changeOwner = Permissions(ACL_CHANGE_OWNER)
+
+            public let rawValue: acl_permset_mask_t
+            public init(rawValue: acl_permset_mask_t) { self.rawValue = rawValue }
+            private init(_ perm: acl_perm_t) { self.rawValue = acl_permset_mask_t(perm.rawValue) }
+
+            public var description: String {
+                var perms: [String] = []
+
+                if self.contains(.readData) {
+                    perms.append("read")
+                }
+
+                if self.contains(.writeData) {
+                    perms.append("write")
+                }
+
+                if self.contains(.listDirectory) {
+                    perms.append("list")
+                }
+
+                if self.contains(.addFile) {
+                    perms.append("add_file")
+                }
+
+                if self.contains(.execute) {
+                    perms.append("execute")
+                }
+
+                if self.contains(.search) {
+                    perms.append("search")
+                }
+
+                if self.contains(.delete) {
+                    perms.append("delete")
+                }
+
+                if self.contains(.appendData) {
+                    perms.append("append")
+                }
+
+                if self.contains(.addSubdirectory) {
+                    perms.append("add_subdirectory")
+                }
+
+                if self.contains(.deleteChild) {
+                    perms.append("delete_child")
+                }
+
+                if self.contains(.readAttributes) {
+                    perms.append("readattr")
+                }
+
+                if self.contains(.writeAttributes) {
+                    perms.append("writeattr")
+                }
+
+                if self.contains(.readExtendedAttributes) {
+                    perms.append("readextattr")
+                }
+
+                if self.contains(.writeExtendedAttributes) {
+                    perms.append("writeextattr")
+                }
+
+                if self.contains(.readSecurity) {
+                    perms.append("readsecurity")
+                }
+
+                if self.contains(.writeSecurity) {
+                    perms.append("writesecurity")
+                }
+
+                if self.contains(.changeOwner) {
+                    perms.append("chown")
+                }
+
+                return perms.joined(separator: ", ")
+            }
+        }
+
+        public struct Flags: OptionSet, Hashable, CustomStringConvertible {
+            public static let inheritToFiles = Flags(rawValue: ACL_ENTRY_FILE_INHERIT.rawValue)
+            public static let inheritToDirectories = Flags(rawValue: ACL_ENTRY_DIRECTORY_INHERIT.rawValue)
+            public static let limitInheritance = Flags(rawValue: ACL_ENTRY_LIMIT_INHERIT.rawValue)
+            public static let onlyInherit = Flags(rawValue: ACL_ENTRY_ONLY_INHERIT.rawValue)
+            public static let isInherited = Flags(rawValue: ACL_ENTRY_INHERITED.rawValue)
+
+            private static let allFlags: [Flags] = [
+                .inheritToFiles, .inheritToDirectories, .limitInheritance, .onlyInherit, .isInherited
+            ]
+
+            public let rawValue: UInt32
+            public init(rawValue: UInt32) { self.rawValue = rawValue }
+
+            fileprivate init(flagset: acl_flagset_t?) throws {
+                self = try Self.allFlags.reduce(into: []) { flags, flag in
+                    let rawFlag = acl_flag_t(rawValue: flag.rawValue)
+                    if try callPOSIXFunction(expect: .nonNegative, closure: { acl_get_flag_np(flagset, rawFlag) }) != 0 {
+                        flags.insert(flag)
                     }
+                }
+            }
 
-                    let guid = try callPOSIXFunction { acl_get_qualifier(self.entry) }
-                    defer { acl_free(guid) }
+            fileprivate func apply(to flagset: acl_flagset_t?) throws {
+                for eachFlag in Self.allFlags {
+                    let rawFlag = acl_flag_t(rawValue: eachFlag.rawValue)
 
-                    return try guid.withMemoryRebound(to: uuid_t.self, capacity: 1) {
-                        try UserOrGroup(uuid: $0.pointee)
+                    if self.contains(eachFlag) {
+                        try callPOSIXFunction(expect: .zero) { acl_add_flag_np(flagset, rawFlag) }
+                    } else {
+                        try callPOSIXFunction(expect: .zero) { acl_delete_flag_np(flagset, rawFlag) }
                     }
-                } catch {
-                    printToStderr("Error getting owner: \(error)")
-                    return nil
                 }
             }
-            set {
-                let rule = self.rule
 
-                if rule != .allow && rule != .deny {
-                    return
+            public var description: String {
+                var flags: [String] = []
+
+                if self.contains(.inheritToFiles) {
+                    flags.append("file_inherit")
                 }
 
-                guard var guid = try? newValue?.uuid else {
-                    acl_set_qualifier(self.entry, nil)
-                    return
+                if self.contains(.inheritToDirectories) {
+                    flags.append("directory_inherit")
                 }
 
-                _ = withUnsafeBytes(of: &guid) { acl_set_qualifier(self.entry, $0.baseAddress) }
-            }
-        }
-
-        public var rule: Rule {
-            get {
-                let tag = try? callPOSIXFunction(expect: .zero) { acl_get_tag_type(self.entry, $0) }
-
-                switch tag {
-                case ACL_EXTENDED_ALLOW:
-                    return .allow
-                case ACL_EXTENDED_DENY:
-                    return .deny
-                default:
-                    return .unknown
+                if self.contains(.limitInheritance) {
+                    flags.append("limit_inherit")
                 }
-            }
-            set {
-                switch newValue {
-                case .allow:
-                    acl_set_tag_type(self.entry, ACL_EXTENDED_ALLOW)
-                case .deny:
-                    acl_set_tag_type(self.entry, ACL_EXTENDED_DENY)
-                default:
-                    break
+
+                if self.contains(.onlyInherit) {
+                    flags.append("only_inherit")
                 }
+
+                return flags.joined(separator: ", ")
             }
         }
 
-        /// The following properties apply only to files
-        public var readDataPermission: Bool {
-            get { self.value(for: ACL_READ_DATA) }
-            set { self.setValue(newValue, for: ACL_READ_DATA) }
-        }
-
-        public var writeDataPermission: Bool {
-            get { self.value(for: ACL_WRITE_DATA) }
-            set { self.setValue(newValue, for: ACL_WRITE_DATA) }
-        }
-
-        public var appendDataPermission: Bool {
-            get { self.value(for: ACL_APPEND_DATA) }
-            set { self.setValue(newValue, for: ACL_APPEND_DATA) }
-        }
-
-        public var executePermission: Bool {
-            get { self.value(for: ACL_EXECUTE) }
-            set { self.setValue(newValue, for: ACL_EXECUTE) }
-        }
-
-        /// The following properties apply only to directories
-        public var listDirectoryPermission: Bool {
-            get { self.value(for: ACL_LIST_DIRECTORY) }
-            set { self.setValue(newValue, for: ACL_LIST_DIRECTORY) }
-        }
-
-        public var addFilePermission: Bool {
-            get { self.value(for: ACL_ADD_FILE) }
-            set { self.setValue(newValue, for: ACL_ADD_FILE) }
-        }
-
-        public var addSubdirectoryPermission: Bool {
-            get { self.value(for: ACL_ADD_SUBDIRECTORY) }
-            set { self.setValue(newValue, for: ACL_ADD_SUBDIRECTORY) }
-        }
-
-        public var searchPermission: Bool {
-            get { self.value(for: ACL_SEARCH) }
-            set { self.setValue(newValue, for: ACL_SEARCH) }
-        }
-
-        public var deleteChildPermission: Bool {
-            get { self.value(for: ACL_DELETE_CHILD) }
-            set { self.setValue(newValue, for: ACL_DELETE_CHILD) }
-        }
-
-        /// The following properties apply to both files and directories
-        public var deletePermission: Bool {
-            get { self.value(for: ACL_DELETE) }
-            set { self.setValue(newValue, for: ACL_DELETE) }
-        }
-
-        public var readAttributesPermission: Bool {
-            get { self.value(for: ACL_READ_ATTRIBUTES) }
-            set { self.setValue(newValue, for: ACL_READ_ATTRIBUTES) }
-        }
-
-        public var writeAttributesPermission: Bool {
-            get { self.value(for: ACL_WRITE_ATTRIBUTES) }
-            set { self.setValue(newValue, for: ACL_WRITE_ATTRIBUTES) }
-        }
-
-        public var readExtendedAttributesPermission: Bool {
-            get { self.value(for: ACL_READ_EXTATTRIBUTES) }
-            set { self.setValue(newValue, for: ACL_READ_EXTATTRIBUTES) }
-        }
-
-        public var writeExtendedAttributesPermission: Bool {
-            get { self.value(for: ACL_WRITE_EXTATTRIBUTES) }
-            set { self.setValue(newValue, for: ACL_WRITE_EXTATTRIBUTES) }
-        }
-
-        public var readSecurityPermission: Bool {
-            get { self.value(for: ACL_READ_SECURITY) }
-            set { self.setValue(newValue, for: ACL_READ_SECURITY) }
-        }
-
-        public var writeSecurityPermission: Bool {
-            get { self.value(for: ACL_WRITE_SECURITY) }
-            set { self.setValue(newValue, for: ACL_WRITE_SECURITY) }
-        }
-
-        public var changeOwnerPermission: Bool {
-            get { self.value(for: ACL_CHANGE_OWNER) }
-            set { self.setValue(newValue, for: ACL_CHANGE_OWNER) }
-        }
-
-        public var stringRepresentationOfPermissions: String {
-            var perms = [String]()
-
-            if !self.isDirectory && self.readDataPermission {
-                perms.append("read")
-            }
-
-            if !self.isDirectory && self.writeDataPermission {
-                perms.append("write")
-            }
-
-            if self.isDirectory && self.listDirectoryPermission {
-                perms.append("list")
-            }
-
-            if self.isDirectory && self.addFilePermission {
-                perms.append("add_file")
-            }
-
-            if !self.isDirectory && self.executePermission {
-                perms.append("execute")
-            }
-
-            if self.isDirectory && self.searchPermission {
-                perms.append("search")
-            }
-
-            if self.deletePermission {
-                perms.append("delete")
-            }
-
-            if !self.isDirectory && self.appendDataPermission {
-                perms.append("append")
-            }
-
-            if self.isDirectory && self.addSubdirectoryPermission {
-                perms.append("add_subdirectory")
-            }
-
-            if self.isDirectory && self.deleteChildPermission {
-                perms.append("delete_child")
-            }
-
-            if self.readAttributesPermission {
-                perms.append("readattr")
-            }
-
-            if self.writeAttributesPermission {
-                perms.append("writeattr")
-            }
-
-            if self.readExtendedAttributesPermission {
-                perms.append("readextattr")
-            }
-
-            if self.writeExtendedAttributesPermission {
-                perms.append("writeextattr")
-            }
-
-            if self.readSecurityPermission {
-                perms.append("readsecurity")
-            }
-
-            if self.writeSecurityPermission {
-                perms.append("writesecurity")
-            }
-
-            if self.changeOwnerPermission {
-                perms.append("chown")
-            }
-
-            if self.inheritToFiles {
-                perms.append("file_inherit")
-            }
-
-            if self.inheritToDirectories {
-                perms.append("directory_inherit")
-            }
-
-            if self.limitInheritance {
-                perms.append("limit_inherit")
-            }
-
-            if self.onlyInherit {
-                perms.append("only_inherit")
-            }
-
-            return perms.joined(separator: ", ")
-        }
-
-        public var isInherited: Bool { self.value(for: ACL_ENTRY_INHERITED) }
-
-        public var inheritToFiles: Bool {
-            get { self.value(for: ACL_ENTRY_FILE_INHERIT) }
-            set { self.setValue(newValue, for: ACL_ENTRY_FILE_INHERIT) }
-        }
-
-        public var inheritToDirectories: Bool {
-            get { self.value(for: ACL_ENTRY_DIRECTORY_INHERIT) }
-            set { self.setValue(newValue, for: ACL_ENTRY_DIRECTORY_INHERIT) }
-        }
-
-        public var limitInheritance: Bool {
-            get { self.value(for: ACL_ENTRY_LIMIT_INHERIT) }
-            set { self.setValue(newValue, for: ACL_ENTRY_LIMIT_INHERIT) }
-        }
-
-        public var onlyInherit: Bool {
-            get { self.value(for: ACL_ENTRY_ONLY_INHERIT) }
-            set { self.setValue(newValue, for: ACL_ENTRY_ONLY_INHERIT) }
-        }
-
-        fileprivate var entry: acl_entry_t
-        private let isDirectory: Bool
+        public var rule: Rule
+        public var owner: UserOrGroup?
+        public var permissions: Permissions
+        public var flags: Flags
 
         public var description: String {
-            var description: String
+            let ownerType: String
 
             switch self.owner {
             case .none:
-                description = "(nil)"
+                ownerType = "(nil)"
             case .user:
-                description = "user"
+                ownerType = "user"
             case .group:
-                description = "group"
+                ownerType = "group"
             }
 
-            description += ":"
+            let ownerName = (try? self.owner?.name) ?? "(nil)"
+            let ownerString = "\(ownerType):\(ownerName)"
 
-            do {
-                description += try self.owner?.name ?? "(nil)"
-            } catch {
-                description += "error: \(error)"
-            }
-
-            description += " "
+            let ruleString: String
 
             switch self.rule {
             case .allow:
-                description += "allow"
+                ruleString = "allow"
             case .deny:
-                description += "deny"
+                ruleString = "deny"
+            }
+
+            return [
+                ownerString,
+                ruleString,
+                self.permissions.description,
+                self.flags.description
+            ].filter { !$0.isEmpty }.joined(separator: " ")
+        }
+
+        public init() {
+            self.rule = .allow
+            self.owner = .user(.current)
+            self.permissions = []
+            self.flags = []
+        }
+
+        internal init(aclEntry entry: acl_entry_t, isDirectory: Bool) throws {
+            switch try callPOSIXFunction(expect: .zero, closure: { acl_get_tag_type(entry, $0) }) {
+            case ACL_EXTENDED_ALLOW:
+                self.rule = .allow
+            case ACL_EXTENDED_DENY:
+                self.rule = .deny
             default:
-                description += "unknown"
+                throw errno(EINVAL)
             }
 
-            description += " \(self.stringRepresentationOfPermissions)"
+            let guid = try callPOSIXFunction { acl_get_qualifier(entry) }
+            defer { acl_free(guid) }
 
-            return description.trimmingCharacters(in: .whitespacesAndNewlines)
-        }
-
-        fileprivate init(aclEntry: acl_entry_t, isDirectory: Bool) {
-            self.isDirectory = isDirectory
-            self.entry = aclEntry
-        }
-
-        private func value(for permission: acl_perm_t) -> Bool {
-            do {
-                let permset = try callPOSIXFunction(expect: .zero) { acl_get_permset(self.entry, $0) }
-                let perm = try callPOSIXFunction(expect: .nonNegative) { acl_get_perm_np(permset, permission) }
-
-                return perm != 0
-            } catch {
-                printToStderr("Error getting value for permission \(permission)")
-                return false
+            self.owner = try guid.withMemoryRebound(to: uuid_t.self, capacity: 1) {
+                try UserOrGroup(uuid: $0.pointee)
             }
+
+            self.permissions = try Permissions(rawValue: callPOSIXFunction(expect: .zero) {
+                acl_get_permset_mask_np(entry, $0)
+            })
+
+            self.flags = try Flags(flagset: callPOSIXFunction(expect: .zero) {
+                acl_get_flagset_np(UnsafeMutableRawPointer(entry), $0)
+            })
         }
 
-        private mutating func setValue(_ newValue: Bool, for permission: acl_perm_t) {
-            do {
-                let permset = try callPOSIXFunction(expect: .zero) { acl_get_permset(self.entry, $0) }
-
-                if newValue {
-                    try callPOSIXFunction(expect: .zero) { acl_add_perm(permset, permission) }
-                } else {
-                    try callPOSIXFunction(expect: .zero) { acl_delete_perm(permset, permission) }
-                }
-
-                try callPOSIXFunction(expect: .zero) { acl_set_permset(self.entry, permset) }
-            } catch {
-                printToStderr("Error setting value \(newValue) for permission \(permission)")
+        fileprivate func apply(to entry: acl_entry_t, isDirectory: Bool) throws {
+            switch self.rule {
+            case .allow:
+                try callPOSIXFunction(expect: .zero) { acl_set_tag_type(entry, ACL_EXTENDED_ALLOW) }
+            case .deny:
+                try callPOSIXFunction(expect: .zero) { acl_set_tag_type(entry, ACL_EXTENDED_DENY) }
             }
-        }
 
-        private func value(for flag: acl_flag_t) -> Bool {
-            do {
-                let flagset = try callPOSIXFunction(expect: .zero) {
-                    acl_get_flagset_np(UnsafeMutableRawPointer(self.entry), $0)
+            if let owner = self.owner, [.allow, .deny].contains(rule) {
+                var guid = try owner.uuid
+
+                _ = try withUnsafeBytes(of: &guid) { bytes in
+                    try callPOSIXFunction(expect: .zero) { acl_set_qualifier(entry, bytes.baseAddress) }
                 }
-
-                let flag = try callPOSIXFunction(expect: .nonNegative) { acl_get_flag_np(flagset, flag) }
-
-                return flag != 0
-            } catch {
-                printToStderr("Error getting value for flag \(flag)")
-                return false
             }
-        }
 
-        private func setValue(_ newValue: Bool, for flag: acl_flag_t) {
-            do {
-                let flagset = try callPOSIXFunction(expect: .zero) {
-                    acl_get_flagset_np(UnsafeMutableRawPointer(self.entry), $0)
-                }
+            try callPOSIXFunction(expect: .zero) { acl_set_permset_mask_np(entry, self.permissions.rawValue) }
 
-                if newValue {
-                    try callPOSIXFunction(expect: .zero) { acl_add_flag_np(flagset, flag) }
-                } else {
-                    try callPOSIXFunction(expect: .zero) { acl_delete_flag_np(flagset, flag) }
-                }
-
-                try callPOSIXFunction(expect: .zero) {
-                    acl_set_flagset_np(UnsafeMutableRawPointer(self.entry), flagset)
-                }
-            } catch {
-                printToStderr("Error setting value \(newValue) for flag \(flag)")
-            }
+            try self.flags.apply(to: try callPOSIXFunction(expect: .zero) {
+                acl_get_flagset_np(UnsafeMutableRawPointer(entry), $0)
+            })
         }
     }
 
@@ -400,7 +289,7 @@ public struct AccessControlList: CustomDebugStringConvertible {
     }
 
     private var aclWrapper: ACLWrapper
-    private var aclForReading: acl_t { self.aclWrapper.acl }
+    internal var aclForReading: acl_t { self.aclWrapper.acl }
     private var aclForWriting: acl_t {
         mutating get throws {
             if !isKnownUniquelyReferenced(&self.aclWrapper) {
@@ -412,20 +301,9 @@ public struct AccessControlList: CustomDebugStringConvertible {
         }
     }
 
-    private let isDirectory: Bool
+    internal let isDirectory: Bool
 
-    private static func getACLEntries(for acl: acl_t, isDirectory: Bool) throws -> [Entry] {
-        var entries: [Entry] = []
-
-        while let entry = try callPOSIXFunction(expect: .zero, closure: {
-            acl_get_entry(acl, (entries.isEmpty ? ACL_FIRST_ENTRY : ACL_NEXT_ENTRY).rawValue, $0)
-        }) {
-            entries.append(Entry(aclEntry: entry, isDirectory: isDirectory))
-        }
-
-        return entries
-    }
-
+    public init() { try! self.init(isDirectory: false) }
     public init(isDirectory: Bool) throws {
         try self.init(acl: callPOSIXFunction { acl_init(0) }, isDirectory: isDirectory)
     }
@@ -434,7 +312,7 @@ public struct AccessControlList: CustomDebugStringConvertible {
     public init(path: FilePath) throws {
         let isDirectory = try FileInfo(path: path, keys: .objectType).objectType == .directory
         let acl = try callPOSIXFunction(path: path) {
-            guard #available(macOS 12.0, iOS 15.0, watchOS 8.0, tvOS 15.0, macCatalyst 15.0, *) else {
+            guard #available(macOS 12.0, iOS 15.0, watchOS 8.0, tvOS 15.0, macCatalyst 15.0, *), versionCheck(12) else {
                 return path.withCString { acl_get_file($0, ACL_TYPE_EXTENDED) }
             }
 
@@ -447,7 +325,7 @@ public struct AccessControlList: CustomDebugStringConvertible {
     public init(path: String) throws {
         let isDirectory = try FileInfo(path: path, keys: .objectType).objectType == .directory
         let acl = try callPOSIXFunction(path: path) {
-            guard #available(macOS 12.0, iOS 15.0, watchOS 8.0, tvOS 15.0, macCatalyst 15.0, *) else {
+            guard #available(macOS 12.0, iOS 15.0, watchOS 8.0, tvOS 15.0, macCatalyst 15.0, *), versionCheck(12) else {
                 return path.withCString { acl_get_file($0, ACL_TYPE_EXTENDED) }
             }
 
@@ -457,7 +335,7 @@ public struct AccessControlList: CustomDebugStringConvertible {
         try self.init(acl: acl, isDirectory: isDirectory)
     }
 
-    public init(data: some DataProtocol, nativeRepresentation: Bool, isDirectory: Bool) throws {
+    public init(data: some DataProtocol, nativeRepresentation: Bool = false, isDirectory: Bool) throws {
         if data.regions.count == 1, let region = data.regions.first {
             try self.init(region: region, nativeRepresentation: nativeRepresentation, isDirectory: isDirectory)
         } else {
@@ -471,11 +349,11 @@ public struct AccessControlList: CustomDebugStringConvertible {
 
     private init(region: some ContiguousBytes, nativeRepresentation: Bool, isDirectory: Bool) throws {
         let acl = try region.withUnsafeBytes {
-            if let acl = nativeRepresentation ? acl_copy_int_native($0.baseAddress) : acl_copy_int($0.baseAddress) {
-                return acl
-            } else {
+            guard let acl = nativeRepresentation ? acl_copy_int_native($0.baseAddress) : acl_copy_int($0.baseAddress) else {
                 throw errno()
             }
+
+            return acl
         }
 
         try self.init(acl: acl, isDirectory: isDirectory)
@@ -484,7 +362,6 @@ public struct AccessControlList: CustomDebugStringConvertible {
     private init(acl: acl_t, isDirectory: Bool) throws {
         self.aclWrapper = ACLWrapper(acl: acl)
         self.isDirectory = isDirectory
-        self.entries = try Self.getACLEntries(for: acl, isDirectory: isDirectory)
     }
 
     @available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, macCatalyst 14.0, *)
@@ -508,7 +385,7 @@ public struct AccessControlList: CustomDebugStringConvertible {
         }
     }
 
-    public func dataRepresentation(native: Bool) throws -> some DataProtocol {
+    public func dataRepresentation(native: Bool = false) throws -> some DataProtocol {
         let acl = self.aclForReading
         let size = acl_size(acl)
 
@@ -532,49 +409,105 @@ public struct AccessControlList: CustomDebugStringConvertible {
         set { _ = try? self.setValue(newValue, for: ACL_FLAG_NO_INHERIT) }
     }
 
-    public private(set) var entries: [Entry]
+    public var startIndex: Int { 0 }
+    public var endIndex: Int { self.count }
+    public func index(after i: Int) -> Int { i + 1 }
 
-    @discardableResult public mutating func makeEntry() throws -> Entry? {
-        let acl = try self.aclForWriting
-        let newEntry = try callPOSIXFunction(expect: .zero, isWrite: true) {
-            var acl: acl_t? = acl
-            return acl_create_entry(&acl, $0)
+    public var count: Int {
+        let ptr = UnsafeMutablePointer<acl_entry_t?>.allocate(capacity: 1)
+        defer { ptr.deallocate() }
+
+        let acl = self.aclForReading
+        var i = 0
+
+        while acl_get_entry(acl, (i == 0 ? ACL_FIRST_ENTRY : ACL_NEXT_ENTRY).rawValue, ptr) == 0 {
+            i += 1
         }
 
-        var entry = Entry(aclEntry: newEntry!, isDirectory: self.isDirectory)
-
-        entry.rule = .allow
-        entry.owner = .user(User.current)
-
-        self.entries.append(entry)
-
-        return entry
+        return i
     }
 
-    public mutating func removeEntry(_ entry: Entry) throws {
-        try self.removeEntries(CollectionOfOne(entry))
+    public var last: Entry? {
+        do {
+            let aclEntry = try callPOSIXFunction(expect: .zero) {
+                acl_get_entry(self.aclForReading, ACL_LAST_ENTRY.rawValue, $0)
+            }
+
+            return try Entry(aclEntry: aclEntry!, isDirectory: self.isDirectory)
+        } catch {
+            return nil
+        }
     }
 
-    public mutating func removeEntries(_ entries: some Sequence<Entry>) throws {
-        let acl = try self.aclForWriting
-        let entriesToRemove = Set(entries.map(\.entry))
+    public func getEntry(at position: some BinaryInteger) throws -> Entry {
+        let aclEntry = try self.getRawEntry(at: position, acl: self.aclForReading)
 
-        for eachEntry in entries {
-            if entriesToRemove.contains(eachEntry.entry) {
-                try callPOSIXFunction(expect: .zero, isWrite: true) {
-                    acl_delete_entry(acl, eachEntry.entry)
-                }
+        return try Entry(aclEntry: aclEntry, isDirectory: self.isDirectory)
+    }
+
+    private func getRawEntry(at position: some BinaryInteger, acl: acl_t) throws -> acl_entry_t {
+        var i = 0
+
+        let ptr = UnsafeMutablePointer<acl_entry_t?>.allocate(capacity: 1)
+        defer { ptr.deallocate() }
+
+        while i < position {
+            defer { i += 1 }
+
+            try callPOSIXFunction(expect: .zero) {
+                acl_get_entry(acl, (i == 0 ? ACL_FIRST_ENTRY : ACL_NEXT_ENTRY).rawValue, ptr)
             }
         }
 
-        self.entries = try Self.getACLEntries(for: acl, isDirectory: self.isDirectory)
+        return try callPOSIXFunction(expect: .zero) {
+            acl_get_entry(acl, (position == 0 ? ACL_FIRST_ENTRY : ACL_NEXT_ENTRY).rawValue, $0)
+        }!
+    }
+
+    public mutating func insertEntry(_ entry: Entry, at position: some BinaryInteger) throws {
+        var acl: acl_t? = try self.aclForWriting
+
+        let aclEntry = try callPOSIXFunction(expect: .zero) {
+            acl_create_entry_np(&acl, $0, ACL_FIRST_ENTRY.rawValue + Int32(position))
+        }!
+
+        try entry.apply(to: aclEntry, isDirectory: self.isDirectory)
+    }
+
+    public mutating func removeEntry(at position: some BinaryInteger) throws {
+        let acl = try self.aclForWriting
+        let aclEntry = try self.getRawEntry(at: position, acl: acl)
+
+        try callPOSIXFunction(expect: .zero) { acl_delete_entry(acl, aclEntry) }
+    }
+
+    private mutating func setEntry(_ entry: Entry, at position: some BinaryInteger) throws {
+        let acl = try self.aclForWriting
+        let aclEntry = try self.getRawEntry(at: position, acl: acl)
+
+        try entry.apply(to: aclEntry, isDirectory: self.isDirectory)
+    }
+
+    public subscript(position: Int) -> Entry {
+        get { try! self.getEntry(at: position) }
+        set { try! self.setEntry(newValue, at: position) }
+    }
+
+    public mutating func replaceSubrange(_ range: Range<Int>, with entries: some Collection<Entry>) {
+        for _ in 0..<range.count {
+            try! self.removeEntry(at: range.lowerBound)
+        }
+
+        for (index, eachEntry) in entries.enumerated() {
+            try! self.insertEntry(eachEntry, at: range.lowerBound + index)
+        }
     }
 
     public func validate() throws {
         try callPOSIXFunction(expect: .zero) { acl_valid(self.aclForReading) }
     }
 
-    public var debugDescription: String {
+    public var description: String {
         do {
             var len = 0
             let desc = try callPOSIXFunction { acl_to_text(self.aclForReading, &len) }
@@ -582,7 +515,7 @@ public struct AccessControlList: CustomDebugStringConvertible {
 
             return String(cString: desc)
         } catch {
-            return error.localizedDescription
+            return String(describing: error)
         }
     }
 
@@ -602,12 +535,10 @@ public struct AccessControlList: CustomDebugStringConvertible {
             acl_get_flagset_np(UnsafeMutableRawPointer(acl), $0)
         }
 
-        try callPOSIXFunction(expect: .zero, isWrite: true) {
-            if value {
-                return acl_add_flag_np(flagset, flag)
-            } else {
-                return acl_delete_flag_np(flagset, flag)
-            }
+        if value {
+            try callPOSIXFunction(expect: .zero, isWrite: true) { acl_add_flag_np(flagset, flag) }
+        } else {
+            try callPOSIXFunction(expect: .zero, isWrite: true) { acl_delete_flag_np(flagset, flag) }
         }
 
         try callPOSIXFunction(expect: .zero, isWrite: true) {
@@ -616,12 +547,37 @@ public struct AccessControlList: CustomDebugStringConvertible {
     }
 }
 
+extension AccessControlList: Codable {
+    private enum CodingKeys: CodingKey {
+        case aclData
+        case isDirectory
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        let base64 = try container.decode(String.self, forKey: .aclData)
+        let isDir = try container.decode(Bool.self, forKey: .isDirectory)
+
+        let data = try Base64.decode(string: base64)
+
+        try self.init(data: data, nativeRepresentation: false, isDirectory: isDir)
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+
+        try container.encode(Base64.encodeString(bytes: self.dataRepresentation(native: false)), forKey: .aclData)
+        try container.encode(self.isDirectory, forKey: .isDirectory)
+    }
+}
+
 extension AccessControlList: Hashable {
-    public static func == (lhs: AccessControlList, rhs: AccessControlList) -> Bool {
-        lhs.debugDescription == rhs.debugDescription
+    public static func ==(lhs: AccessControlList, rhs: AccessControlList) -> Bool {
+        lhs.description == rhs.description
     }
 
     public func hash(into hasher: inout Hasher) {
-        self.debugDescription.hash(into: &hasher)
+        self.description.hash(into: &hasher)
     }
 }
