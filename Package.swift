@@ -28,14 +28,14 @@ let package = Package(
         .package(url: "https://github.com/swift-extras/swift-extras-base64.git", from: "0.7.0"),
     ],
     targets: [
-        .systemLibrary(name: "Membership"),
+        .systemLibrary(name: "CSFileInfo_Membership"),
         .target(
             name: "CSFileInfo",
             dependencies: [
                 "CSDataProtocol",
                 "CSErrors",
                 "DataParser",
-                "Membership",
+                "CSFileInfo_Membership",
                 .product(name: "ExtrasBase64", package: "swift-extras-base64"),
             ]
         ),

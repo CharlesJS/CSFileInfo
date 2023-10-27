@@ -1,4 +1,4 @@
-module Membership {
+module CSFileInfo_Membership {
     umbrella header "membership.h"
     export *
 }

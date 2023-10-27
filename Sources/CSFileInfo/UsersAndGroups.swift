@@ -7,7 +7,7 @@
 //
 
 import CSErrors
-import Membership
+import CSFileInfo_Membership
 
 public enum UserOrGroup: Hashable, CustomStringConvertible {
     case user(User)

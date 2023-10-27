@@ -7,7 +7,7 @@
 
 import CSErrors
 @testable import CSFileInfo
-import Membership
+import CSFileInfo_Membership
 import System
 import XCTest
 
