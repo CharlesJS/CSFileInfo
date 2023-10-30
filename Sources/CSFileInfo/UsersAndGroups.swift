@@ -74,37 +74,18 @@ public struct User: Hashable, CustomStringConvertible {
     }
 
     public init?(name: String) throws {
-        errno = 0
-
-        if #available(macOS 12.0, iOS 15.0, watchOS 8.0, tvOS 15.0, macCatalyst 15.0, *), versionCheck(12),
-           let pw = name.withPlatformString({ getpwnam($0) }) {
-            self.id = pw.pointee.pw_uid
-        } else if let pw = name.withCString({ getpwnam($0) }) {
-            self.id = pw.pointee.pw_uid
-        } else if errno != 0 {
-            throw errno()
-        } else {
+        guard let id = try wrapPwdAPI(getpwnam_r, name, { $0.pw_uid }) else {
             return nil
         }
+
+        self.id = id
     }
 
     public let id: uid_t
 
     public var name: String? {
         get throws {
-            errno = 0
-
-            if let pw = getpwuid(self.id) {
-                guard #available(macOS 12.0, iOS 15.0, watchOS 8.0, tvOS 15.0, macCatalyst 15.0, *), versionCheck(12) else {
-                    return String(cString: pw.pointee.pw_name)
-                }
-
-                return String(platformString: pw.pointee.pw_name)
-            } else if errno != 0 {
-                throw errno()
-            }
-
-            return nil
+            try wrapPwdAPI(getpwuid_r, self.id, { String(cString: $0.pw_name) })
         }
     }
 
@@ -129,43 +110,24 @@ public struct User: Hashable, CustomStringConvertible {
 
 public struct Group: Hashable, CustomStringConvertible {
     public static var current: Group { Group(id: getgid()) }
-    
+
     public init(id: gid_t) {
         self.id = id
     }
 
     public init?(name: String) throws {
-        errno = 0
-
-        if #available(macOS 12.0, iOS 15.0, watchOS 8.0, tvOS 15.0, macCatalyst 15.0, *), versionCheck(12),
-           let grp = name.withPlatformString({ getgrnam($0) }) {
-            self.id = grp.pointee.gr_gid
-        } else if let grp = name.withCString({ getgrnam($0) }) {
-            self.id = grp.pointee.gr_gid
-        } else if errno != 0 {
-            throw errno()
-        } else {
+        guard let id = try wrapPwdAPI(getgrnam_r, name, { $0.gr_gid }) else {
             return nil
         }
+
+        self.id = id
     }
 
     public let id: gid_t
 
     public var name: String? {
         get throws {
-            errno = 0
-
-            if let grp = getgrgid(self.id) {
-                guard #available(macOS 12.0, iOS 15.0, watchOS 8.0, tvOS 15.0, macCatalyst 15.0, *), versionCheck(12) else {
-                    return String(cString: grp.pointee.gr_name)
-                }
-
-                return String(platformString: grp.pointee.gr_name)
-            } else if errno != 0 {
-                throw errno()
-            }
-
-            return nil
+            try wrapPwdAPI(getgrgid_r, self.id, { String(cString: $0.gr_name) })
         }
     }
 
@@ -186,4 +148,39 @@ public struct Group: Hashable, CustomStringConvertible {
 
         return "\(name) (GID \(self.id))"
     }
+}
+
+private func wrapPwdAPI<Argument, ReturnValue, PwdType>(
+    _ pwdFunc: (
+        Argument,
+        UnsafeMutablePointer<PwdType>?,
+        UnsafeMutablePointer<CChar>?,
+        Int,
+        UnsafeMutablePointer<UnsafeMutablePointer<PwdType>?>?
+    ) -> Int32,
+    _ argument: Argument,
+    _ closure: (PwdType) -> ReturnValue
+) throws -> ReturnValue? {
+    let bufsize = try callPOSIXFunction(expect: .notSpecific(-1)) {
+        errno = ENOTSUP
+        return sysconf(_SC_GETPW_R_SIZE_MAX)
+    }
+
+    let buffer = UnsafeMutablePointer<CChar>.allocate(capacity: Int(bufsize))
+    defer { buffer.deallocate() }
+
+    let pwd = UnsafeMutablePointer<PwdType>.allocate(capacity: 1)
+    defer { pwd.deallocate() }
+
+    var retPwd: UnsafeMutablePointer<PwdType>? = nil
+
+    try callPOSIXFunction(expect: .zero, errorFrom: .returnValue) {
+        pwdFunc(argument, pwd, buffer, bufsize, &retPwd)
+    }
+
+    if retPwd == nil {
+        return nil
+    }
+
+    return closure(pwd.pointee)
 }
