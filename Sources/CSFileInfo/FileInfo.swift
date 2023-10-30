@@ -165,76 +165,249 @@ public struct FileInfo {
     }
 
     public init() {
-        self.filename = nil
-        self.pathString = nil
-        self.mountRelativePath = nil
-        self.noFirmLinkPath = nil
-        self.deviceID = nil
-        self.realDeviceID = nil
-        self.fileSystemID = nil
-        self.realFileSystemID = nil
-        self.objectType = nil
-        self.objectTag = nil
-        self.linkID = nil
-        self.persistentID = nil
-        self.inode = nil
-        self.cloneID = nil
-        self.parentID = nil
-        self.script = nil
-        self.creationTime = nil
-        self.modificationTime = nil
-        self.attributeModificationTime = nil
-        self.accessTime = nil
-        self.backupTime = nil
-        self.addedTime = nil
-        self.generationCount = nil
-        self.recursiveGenerationCount = nil
-        self.documentID = nil
-        self.userAccess = nil
-        self.protectionFlags = nil
-        self.privateSize = nil
-        self.fileLinkCount = nil
-        self.fileTotalLogicalSize = nil
-        self.fileTotalPhysicalSize = nil
-        self.fileOptimalBlockSize = nil
-        self.fileAllocationClumpSize = nil
-        self.fileDataForkLogicalSize = nil
-        self.fileDataForkPhysicalSize = nil
-        self.fileResourceForkLogicalSize = nil
-        self.fileResourceForkPhysicalSize = nil
-        self.fileDeviceType = nil
-        self.directoryLinkCount = nil
-        self.directoryEntryCount = nil
-        self.directoryMountStatus = nil
-        self.directoryAllocationSize = nil
-        self.directoryOptimalBlockSize = nil
-        self.directoryLogicalSize = nil
-        self.volumeSignature = nil
-        self.volumeSize = nil
-        self.volumeFreeSpace = nil
-        self.volumeAvailableSpace = nil
-        self.volumeSpaceUsed = nil
-        self.volumeMinAllocationSize = nil
-        self.volumeAllocationClumpSize = nil
-        self.volumeOptimalBlockSize = nil
-        self.volumeObjectCount = nil
-        self.volumeFileCount = nil
-        self.volumeDirectoryCount = nil
-        self.volumeMaxObjectCount = nil
-        self.volumeMountPointPathString = nil
-        self.volumeName = nil
-        self.volumeMountFlags = nil
-        self.volumeMountedDevice = nil
-        self.volumeEncodingsUsed = nil
-        self.volumeUUID = nil
-        self.volumeFileSystemTypeName = nil
-        self.volumeFileSystemSubtype = nil
-        self.volumeQuotaSize = nil
-        self.volumeReservedSize = nil
-        self.volumeNativeCapabilities = nil
-        self.volumeAllowedCapabilities = nil
-        self.volumeNativelySupportedKeys = nil
-        self.volumeAllowedKeys = nil
+        self.init(
+            filename: nil,
+            pathString: nil,
+            mountRelativePath: nil,
+            noFirmLinkPath: nil,
+            deviceID: nil,
+            realDeviceID: nil,
+            fileSystemID: nil,
+            realFileSystemID: nil,
+            objectType: nil,
+            objectTag: nil,
+            linkID: nil,
+            persistentID: nil,
+            inode: nil,
+            cloneID: nil,
+            parentID: nil,
+            script: nil,
+            creationTime: nil,
+            modificationTime: nil,
+            attributeModificationTime: nil,
+            accessTime: nil,
+            backupTime: nil,
+            addedTime: nil,
+            finderInfo: nil,
+            ownerID: nil,
+            ownerUUID: nil,
+            groupOwnerID: nil,
+            groupOwnerUUID: nil,
+            permissionsMode: nil,
+            accessControlList: nil,
+            posixFlags: nil,
+            extendedFlags: nil,
+            generationCount: nil,
+            recursiveGenerationCount: nil,
+            documentID: nil,
+            userAccess: nil,
+            protectionFlags: nil,
+            privateSize: nil,
+            fileLinkCount: nil,
+            fileTotalLogicalSize: nil,
+            fileTotalPhysicalSize: nil,
+            fileOptimalBlockSize: nil,
+            fileAllocationClumpSize: nil,
+            fileDataForkLogicalSize: nil,
+            fileDataForkPhysicalSize: nil,
+            fileResourceForkLogicalSize: nil,
+            fileResourceForkPhysicalSize: nil,
+            fileDeviceType: nil,
+            directoryLinkCount: nil,
+            directoryEntryCount: nil,
+            directoryMountStatus: nil,
+            directoryAllocationSize: nil,
+            directoryOptimalBlockSize: nil,
+            directoryLogicalSize: nil,
+            volumeSignature: nil,
+            volumeSize: nil,
+            volumeFreeSpace: nil,
+            volumeAvailableSpace: nil,
+            volumeSpaceUsed: nil,
+            volumeMinAllocationSize: nil,
+            volumeAllocationClumpSize: nil,
+            volumeOptimalBlockSize: nil,
+            volumeObjectCount: nil,
+            volumeFileCount: nil,
+            volumeDirectoryCount: nil,
+            volumeMaxObjectCount: nil,
+            volumeMountPointPathString: nil,
+            volumeName: nil,
+            volumeMountFlags: nil,
+            volumeMountedDevice: nil,
+            volumeEncodingsUsed: nil,
+            volumeUUID: nil,
+            volumeFileSystemTypeName: nil,
+            volumeFileSystemSubtype: nil,
+            volumeQuotaSize: nil,
+            volumeReservedSize: nil,
+            volumeNativeCapabilities: nil,
+            volumeAllowedCapabilities: nil,
+            volumeNativelySupportedKeys: nil,
+            volumeAllowedKeys: nil
+        )
+    }
+
+    internal init(
+        filename: String?,
+        pathString: String?,
+        mountRelativePath: String?,
+        noFirmLinkPath: String?,
+        deviceID: dev_t?,
+        realDeviceID: dev_t?,
+        fileSystemID: fsid_t?,
+        realFileSystemID: fsid_t?,
+        objectType: ObjectType?,
+        objectTag: ObjectTag?,
+        linkID: UInt64?,
+        persistentID: UInt64?,
+        inode: ino_t?,
+        cloneID: UInt64?,
+        parentID: UInt64?,
+        script: text_encoding_t?,
+        creationTime: timespec?,
+        modificationTime: timespec?,
+        attributeModificationTime: timespec?,
+        accessTime: timespec?,
+        backupTime: timespec?,
+        addedTime: timespec?,
+        finderInfo: FinderInfo?,
+        ownerID: uid_t?,
+        ownerUUID: uuid_t?,
+        groupOwnerID: gid_t?,
+        groupOwnerUUID: uuid_t?,
+        permissionsMode: mode_t?,
+        accessControlList: AccessControlList?,
+        posixFlags: POSIXFlags?,
+        extendedFlags: ExtendedFlags?,
+        generationCount: UInt32?,
+        recursiveGenerationCount: UInt64?,
+        documentID: UInt32?,
+        userAccess: UserAccess?,
+        protectionFlags: UInt32?,
+        privateSize: off_t?,
+        fileLinkCount: UInt32?,
+        fileTotalLogicalSize: off_t?,
+        fileTotalPhysicalSize: off_t?,
+        fileOptimalBlockSize: UInt32?,
+        fileAllocationClumpSize: UInt32?,
+        fileDataForkLogicalSize: off_t?,
+        fileDataForkPhysicalSize: off_t?,
+        fileResourceForkLogicalSize: off_t?,
+        fileResourceForkPhysicalSize: off_t?,
+        fileDeviceType: UInt32?,
+        directoryLinkCount: UInt32?,
+        directoryEntryCount: UInt32?,
+        directoryMountStatus: MountStatus?,
+        directoryAllocationSize: off_t?,
+        directoryOptimalBlockSize: UInt32?,
+        directoryLogicalSize: off_t?,
+        volumeSignature: UInt32?,
+        volumeSize: off_t?,
+        volumeFreeSpace: off_t?,
+        volumeAvailableSpace: off_t?,
+        volumeSpaceUsed: off_t?,
+        volumeMinAllocationSize: off_t?,
+        volumeAllocationClumpSize: off_t?,
+        volumeOptimalBlockSize: UInt32?,
+        volumeObjectCount: UInt32?,
+        volumeFileCount: UInt32?,
+        volumeDirectoryCount: UInt32?,
+        volumeMaxObjectCount: UInt32?,
+        volumeMountPointPathString: String?,
+        volumeName: String?,
+        volumeMountFlags: UInt32?,
+        volumeMountedDevice: String?,
+        volumeEncodingsUsed: CUnsignedLongLong?,
+        volumeUUID: uuid_t?,
+        volumeFileSystemTypeName: String?,
+        volumeFileSystemSubtype: UInt32?,
+        volumeQuotaSize: off_t?,
+        volumeReservedSize: off_t?,
+        volumeNativeCapabilities: VolumeCapabilities?,
+        volumeAllowedCapabilities: VolumeCapabilities?,
+        volumeNativelySupportedKeys: Keys?,
+        volumeAllowedKeys: Keys?
+    ) {
+        self.filename = filename
+        self.pathString = pathString
+        self.mountRelativePath = mountRelativePath
+        self.noFirmLinkPath = noFirmLinkPath
+        self.deviceID = deviceID
+        self.realDeviceID = realDeviceID
+        self.fileSystemID = fileSystemID
+        self.realFileSystemID = realFileSystemID
+        self.objectType = objectType
+        self.objectTag = objectTag
+        self.linkID = linkID
+        self.persistentID = persistentID
+        self.inode = inode
+        self.cloneID = cloneID
+        self.parentID = parentID
+        self.script = script
+        self.creationTime = creationTime
+        self.modificationTime = modificationTime
+        self.attributeModificationTime = attributeModificationTime
+        self.accessTime = accessTime
+        self.backupTime = backupTime
+        self.addedTime = addedTime
+        self._finderInfo = finderInfo
+        self.ownerID = ownerID
+        self.ownerUUID = ownerUUID
+        self.groupOwnerID = groupOwnerID
+        self.groupOwnerUUID = groupOwnerUUID
+        self.permissionsMode = permissionsMode
+        self.accessControlList = accessControlList
+        self._posixFlags = posixFlags
+        self.extendedFlags = extendedFlags
+        self.generationCount = generationCount
+        self.recursiveGenerationCount = recursiveGenerationCount
+        self.documentID = documentID
+        self.userAccess = userAccess
+        self.protectionFlags = protectionFlags
+        self.privateSize = privateSize
+        self.fileLinkCount = fileLinkCount
+        self.fileTotalLogicalSize = fileTotalLogicalSize
+        self.fileTotalPhysicalSize = fileTotalPhysicalSize
+        self.fileOptimalBlockSize = fileOptimalBlockSize
+        self.fileAllocationClumpSize = fileAllocationClumpSize
+        self.fileDataForkLogicalSize = fileDataForkLogicalSize
+        self.fileDataForkPhysicalSize = fileDataForkPhysicalSize
+        self.fileResourceForkLogicalSize = fileResourceForkLogicalSize
+        self.fileResourceForkPhysicalSize = fileResourceForkPhysicalSize
+        self.fileDeviceType = fileDeviceType
+        self.directoryLinkCount = directoryLinkCount
+        self.directoryEntryCount = directoryEntryCount
+        self.directoryMountStatus = directoryMountStatus
+        self.directoryAllocationSize = directoryAllocationSize
+        self.directoryOptimalBlockSize = directoryOptimalBlockSize
+        self.directoryLogicalSize = directoryLogicalSize
+        self.volumeSignature = volumeSignature
+        self.volumeSize = volumeSize
+        self.volumeFreeSpace = volumeFreeSpace
+        self.volumeAvailableSpace = volumeAvailableSpace
+        self.volumeSpaceUsed = volumeSpaceUsed
+        self.volumeMinAllocationSize = volumeMinAllocationSize
+        self.volumeAllocationClumpSize = volumeAllocationClumpSize
+        self.volumeOptimalBlockSize = volumeOptimalBlockSize
+        self.volumeObjectCount = volumeObjectCount
+        self.volumeFileCount = volumeFileCount
+        self.volumeDirectoryCount = volumeDirectoryCount
+        self.volumeMaxObjectCount = volumeMaxObjectCount
+        self.volumeMountPointPathString = volumeMountPointPathString
+        self.volumeName = volumeName
+        self.volumeMountFlags = volumeMountFlags
+        self.volumeMountedDevice = volumeMountedDevice
+        self.volumeEncodingsUsed = volumeEncodingsUsed
+        self.volumeUUID = volumeUUID
+        self.volumeFileSystemTypeName = volumeFileSystemTypeName
+        self.volumeFileSystemSubtype = volumeFileSystemSubtype
+        self.volumeQuotaSize = volumeQuotaSize
+        self.volumeReservedSize = volumeReservedSize
+        self.volumeNativeCapabilities = volumeNativeCapabilities
+        self.volumeAllowedCapabilities = volumeAllowedCapabilities
+        self.volumeNativelySupportedKeys = volumeNativelySupportedKeys
+        self.volumeAllowedKeys = volumeAllowedKeys
     }
 
     

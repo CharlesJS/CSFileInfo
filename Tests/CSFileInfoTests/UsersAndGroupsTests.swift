@@ -54,6 +54,20 @@ class UsersAndGroupsTests: XCTestCase {
         return UUID(uuid: uuid)
     }()
 
+    func testAll() throws {
+        for version in [10, 11, 12, 13] {
+            try emulateOSVersion(version) {
+                self.testCurrentUser()
+                self.testUserByID()
+                try self.testUserByName()
+                self.testCurrentGroup()
+                self.testGroupByID()
+                try self.testGroupByName()
+                try self.testLookupByUUID()
+            }
+        }
+    }
+
     func testCurrentUser() {
         let user = User.current
 
