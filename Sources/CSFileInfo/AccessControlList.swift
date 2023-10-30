@@ -226,10 +226,14 @@ public struct AccessControlList: RangeReplaceableCollection, CustomStringConvert
         }
 
         public init() {
-            self.rule = .allow
-            self.owner = .user(.current)
-            self.permissions = []
-            self.flags = []
+            self.init(rule: .allow, owner: .user(.current), permissions: [], flags: [])
+        }
+
+        public init(rule: Rule, owner: UserOrGroup, permissions: Permissions, flags: Flags = []) {
+            self.rule = rule
+            self.owner = owner
+            self.permissions = permissions
+            self.flags = flags
         }
 
         internal init(aclEntry entry: acl_entry_t, isDirectory: Bool) throws {
@@ -306,6 +310,14 @@ public struct AccessControlList: RangeReplaceableCollection, CustomStringConvert
     public init() { try! self.init(isDirectory: false) }
     public init(isDirectory: Bool) throws {
         try self.init(acl: callPOSIXFunction { acl_init(0) }, isDirectory: isDirectory)
+    }
+
+    public init(entries: some Sequence<Entry>, isDirectory: Bool = false) throws {
+        try self.init(isDirectory: isDirectory)
+
+        for eachEntry in entries {
+            self.append(eachEntry)
+        }
     }
 
     @available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, macCatalyst 14.0, *)
