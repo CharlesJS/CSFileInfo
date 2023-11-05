@@ -274,7 +274,10 @@ final class FileInfoFixtureTests: XCTestCase {
             for eachKeyPath in keyPaths {
                 if var time = info[keyPath: eachKeyPath] {
                     let timeInterval = TimeInterval(time.tv_sec) + TimeInterval(time.tv_nsec) / TimeInterval(NSEC_PER_SEC)
-                    time.tv_sec += TimeZone.current.secondsFromGMT(for: Date(timeIntervalSince1970: timeInterval))
+                    let thenFromGMT = TimeZone.current.secondsFromGMT(for: Date(timeIntervalSince1970: timeInterval))
+                    let nowFromGMT = TimeZone.current.secondsFromGMT(for: Date())
+
+                    time.tv_sec += thenFromGMT + (thenFromGMT - nowFromGMT)
 
                     info[keyPath: eachKeyPath] = time
                 }
