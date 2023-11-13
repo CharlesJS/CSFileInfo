@@ -1,4 +1,4 @@
-// swift-tools-version: 5.7
+// swift-tools-version: 5.9
 
 import PackageDescription
 
@@ -23,7 +23,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/CharlesJS/CSDataProtocol", from: "0.1.0"),
-        .package(url: "https://github.com/CharlesJS/CSErrors", from: "1.2.4"),
+        .package(url: "https://github.com/CharlesJS/CSErrors", from: "1.2.5"),
         .package(url: "https://github.com/CharlesJS/DataParser", from: "0.3.2"),
         .package(url: "https://github.com/swift-extras/swift-extras-base64.git", from: "0.7.0"),
     ],

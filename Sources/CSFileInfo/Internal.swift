@@ -28,9 +28,9 @@ func emulateOSVersionAsync(_ version: Int, closure: () async throws -> Void) asy
     try await closure()
 }
 
-func versionCheck(_ version: Int) -> Bool { emulatedVersion >= version }
+package func versionCheck(_ version: Int) -> Bool { emulatedVersion >= version }
 #else
-@inline(__always) func versionCheck(_: Int) -> Bool { true }
+@inline(__always) package func versionCheck(_: Int) -> Bool { true }
 #endif
 
 extension String {
