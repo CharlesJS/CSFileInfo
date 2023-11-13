@@ -570,4 +570,28 @@ final class ExtendedAttributeTests: XCTestCase {
         self.assertXattrs(orig, ["a": "A", "b": "B", "e": "E", "f": "F", "i": "I", "j": "J"])
         self.assertXattrs(link, ["c": "C", "d": "D", "g": "G", "h": "H", "k": "K", "l": "L"], options: .noTraverseLink)
     }
+
+    func testFailsWithNonFileURLs() {
+        let nonFileURL = URL(string: "https://www.charlessoft.com/index.html")!
+
+        XCTAssertThrowsError(try ExtendedAttribute.list(at: nonFileURL)) {
+            XCTAssertEqual(($0 as? CocoaError)?.code, .fileReadUnsupportedScheme)
+        }
+
+        XCTAssertThrowsError(try ExtendedAttribute(url: nonFileURL, key: "foo")) {
+            XCTAssertEqual(($0 as? CocoaError)?.code, .fileReadUnsupportedScheme)
+        }
+
+        XCTAssertThrowsError(try ExtendedAttribute(key: "key", data: Data()).write(to: nonFileURL)) {
+            XCTAssertEqual(($0 as? CocoaError)?.code, .fileWriteUnsupportedScheme)
+        }
+
+        XCTAssertThrowsError(try ExtendedAttribute.write(["1", "2"].map { .init(key: $0, data: Data()) }, to: nonFileURL)) {
+            XCTAssertEqual(($0 as? CocoaError)?.code, .fileWriteUnsupportedScheme)
+        }
+
+        XCTAssertThrowsError(try ExtendedAttribute.remove(keys: ["k1", "k2"], at: nonFileURL)) {
+            XCTAssertEqual(($0 as? CocoaError)?.code, .fileWriteUnsupportedScheme)
+        }
+    }
 }
