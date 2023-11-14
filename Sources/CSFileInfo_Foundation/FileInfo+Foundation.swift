@@ -7,6 +7,7 @@
 
 import CSFileInfo
 import Foundation
+import System
 
 extension FileInfo {
     public var creationDate: Date? {
@@ -34,5 +35,23 @@ extension FileInfo {
     public var addedDate: Date? {
         get { self.addedTime.map { Date(timespec: $0) } }
         set { self.addedTime = newValue?.timespec }
+    }
+
+    public init(url: URL, keys: Keys) throws {
+        guard #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, macCatalyst 14.0, *), versionCheck(11) else {
+            try self.init(path: url.path, keys: keys)
+            return
+        }
+
+        try self.init(path: FilePath(url.path), keys: keys)
+    }
+
+    public func apply(to url: URL) throws {
+        guard #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, macCatalyst 14.0, *), versionCheck(11) else {
+            try self.apply(toPath: url.path)
+            return
+        }
+
+        try self.apply(to: FilePath(url.path))
     }
 }
