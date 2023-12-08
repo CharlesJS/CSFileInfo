@@ -191,10 +191,10 @@ final class FileInfoFixtureTests: XCTestCase {
         defer { _ = try? fileDescriptor.close() }
 
         for eachInfo in try [
-            FileInfo(path: url.path, keys: keys),
-            FileInfo(path: FilePath(url.path), keys: keys),
-            FileInfo(fileDescriptor: fileDescriptor.rawValue, keys: keys),
-            FileInfo(fileDescriptor: fileDescriptor, keys: keys)
+            FileInfo(atPath: url.path, keys: keys),
+            FileInfo(at: FilePath(url.path), keys: keys),
+            FileInfo(atFileDescriptor: fileDescriptor.rawValue, keys: keys),
+            FileInfo(at: fileDescriptor, keys: keys)
         ] {
             if keys.contains(.filename) {
                 XCTAssertEqual(eachInfo.filename, url.lastPathComponent)
@@ -222,7 +222,7 @@ final class FileInfoFixtureTests: XCTestCase {
         for eachFile in imageInfo.files {
             let url = mountPoint.appending(path: eachFile.path)
 
-            let fileInfo = try FileInfo(path: url.path, keys: keys)
+            let fileInfo = try FileInfo(atPath: url.path, keys: keys)
             let expectedFileInfo = self.getExpectedInfo(file: eachFile, imageInfo: imageInfo)
 
             let infoJSON = try JSONEncoder().encode(fileInfo)
@@ -248,8 +248,8 @@ final class FileInfoFixtureTests: XCTestCase {
             let origURL = mountPoint.appending(path: "Directory/PlainFile")
             let hardLinkKeys: FileInfo.Keys = [.inode, .linkID, .persistentID]
 
-            let hardLinkInfo = try FileInfo(path: hardLinkURL.path, keys: hardLinkKeys)
-            let origInfo = try FileInfo(path: origURL.path, keys: hardLinkKeys)
+            let hardLinkInfo = try FileInfo(atPath: hardLinkURL.path, keys: hardLinkKeys)
+            let origInfo = try FileInfo(atPath: origURL.path, keys: hardLinkKeys)
 
             XCTAssertEqual(hardLinkInfo.inode, origInfo.inode)
 

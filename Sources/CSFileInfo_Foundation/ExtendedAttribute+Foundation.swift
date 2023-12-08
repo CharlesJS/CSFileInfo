@@ -47,11 +47,11 @@ extension ExtendedAttribute {
         guard url.isFileURL else { throw CocoaError(.fileReadUnsupportedScheme, url: url) }
 
         guard #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, macCatalyst 14.0, *), versionCheck(11) else {
-            try self.init(path: url.path, key: key, options: options)
+            try self.init(atPath: url.path, key: key, options: options)
             return
         }
 
-        try self.init(path: FilePath(url.path), key: key, options: options)
+        try self.init(at: FilePath(url.path), key: key, options: options)
     }
 
     public func write(to url: URL, options: WriteOptions = []) throws {

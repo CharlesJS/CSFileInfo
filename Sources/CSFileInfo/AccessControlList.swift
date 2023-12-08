@@ -321,8 +321,8 @@ public struct AccessControlList: RangeReplaceableCollection, CustomStringConvert
     }
 
     @available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, macCatalyst 14.0, *)
-    public init(path: FilePath) throws {
-        let isDirectory = try FileInfo(path: path, keys: .objectType).objectType == .directory
+    public init(at path: FilePath) throws {
+        let isDirectory = try FileInfo(at: path, keys: .objectType).objectType == .directory
         let acl = try callPOSIXFunction(path: path) {
             guard #available(macOS 12.0, iOS 15.0, watchOS 8.0, tvOS 15.0, macCatalyst 15.0, *), versionCheck(12) else {
                 return path.withCString { acl_get_file($0, ACL_TYPE_EXTENDED) }
@@ -334,8 +334,8 @@ public struct AccessControlList: RangeReplaceableCollection, CustomStringConvert
         try self.init(acl: acl, isDirectory: isDirectory)
     }
 
-    public init(path: String) throws {
-        let isDirectory = try FileInfo(path: path, keys: .objectType).objectType == .directory
+    public init(atPath path: String) throws {
+        let isDirectory = try FileInfo(atPath: path, keys: .objectType).objectType == .directory
         let acl = try callPOSIXFunction(path: path) {
             guard #available(macOS 12.0, iOS 15.0, watchOS 8.0, tvOS 15.0, macCatalyst 15.0, *), versionCheck(12) else {
                 return path.withCString { acl_get_file($0, ACL_TYPE_EXTENDED) }

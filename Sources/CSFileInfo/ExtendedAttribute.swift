@@ -174,7 +174,7 @@ public struct ExtendedAttribute: Codable, Hashable {
     }
 
     @available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, macCatalyst 14.0, *)
-    public init(path: FilePath, key: String, options: ReadOptions = []) throws {
+    public init(at path: FilePath, key: String, options: ReadOptions = []) throws {
         guard #available(macOS 12.0, iOS 15.0, watchOS 8.0, tvOS 15.0, macCatalyst 15.0, *), versionCheck(12) else {
             self = try path.withCString {
                 try ExtendedAttribute(path: String(describing: path), cPath: $0, key: key, options: options)
@@ -188,13 +188,13 @@ public struct ExtendedAttribute: Codable, Hashable {
         }
     }
     
-    public init(path: String, key: String, options: ReadOptions = []) throws {
+    public init(atPath path: String, key: String, options: ReadOptions = []) throws {
         guard #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, macCatalyst 14.0, *), versionCheck(12) else {
             self = try path.withCString { try ExtendedAttribute(path: path, cPath: $0, key: key, options: options) }
             return
         }
 
-        try self.init(path: FilePath(path), key: key, options: options)
+        try self.init(at: FilePath(path), key: key, options: options)
     }
 
     private init(path: String, cPath: UnsafePointer<CChar>, key: String, options: ReadOptions) throws {
@@ -211,11 +211,11 @@ public struct ExtendedAttribute: Codable, Hashable {
     }
 
     @available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, macCatalyst 14.0, *)
-    public init(fileDescriptor: FileDescriptor, key: String, options: ReadOptions = []) throws {
+    public init(at fileDescriptor: FileDescriptor, key: String, options: ReadOptions = []) throws {
         try self.init(path: nil, fileDescriptor: fileDescriptor.rawValue, key: key, options: options)
     }
 
-    public init(fileDescriptor fd: Int32, key: String, options: ReadOptions = []) throws {
+    public init(atFileDescriptor fd: Int32, key: String, options: ReadOptions = []) throws {
         try self.init(path: nil, fileDescriptor: fd, key: key, options: options)
     }
 

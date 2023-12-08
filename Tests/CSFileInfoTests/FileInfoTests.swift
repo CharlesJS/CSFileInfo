@@ -34,28 +34,28 @@ class FileInfoTests: XCTestCase {
 
         try FileManager.default.createDirectory(at: tempURL, withIntermediateDirectories: true)
 
-        var info = try FileInfo(path: tempURL.path, keys: [])
+        var info = try FileInfo(atPath: tempURL.path, keys: [])
         XCTAssertNil(info.objectType)
         XCTAssertNil(info.directoryMountStatus)
         XCTAssertNil(info.path)
         XCTAssertNil(info.pathString)
 
-        info = try FileInfo(path: tempURL.path, keys: .finderInfo)
+        info = try FileInfo(atPath: tempURL.path, keys: .finderInfo)
         XCTAssertEqual(info.objectType, .directory)
         XCTAssertEqual(info.directoryMountStatus, [])
         XCTAssertNil(info.path)
         XCTAssertNil(info.pathString)
 
-        info = try FileInfo(path: tempURL.path, keys: .fullPath)
+        info = try FileInfo(atPath: tempURL.path, keys: .fullPath)
         XCTAssertEqual(info.objectType, .directory)
         XCTAssertEqual(info.path.flatMap { URL(filePath: $0) }?.standardizedFileURL, tempURL.standardizedFileURL)
         XCTAssertEqual(info.pathString.map { URL(filePath: $0) }?.standardizedFileURL, tempURL.standardizedFileURL)
 
-        info = try FileInfo(path: NSOpenStepRootDirectory(), keys: [])
+        info = try FileInfo(atPath: NSOpenStepRootDirectory(), keys: [])
         XCTAssertNil(info.objectType)
         XCTAssertNil(info.directoryMountStatus)
 
-        info = try FileInfo(path: NSOpenStepRootDirectory(), keys: .finderInfo)
+        info = try FileInfo(atPath: NSOpenStepRootDirectory(), keys: .finderInfo)
         XCTAssertEqual(info.objectType, .directory)
         XCTAssertEqual(info.directoryMountStatus, .isMountPoint)
     }
@@ -88,18 +88,18 @@ class FileInfoTests: XCTestCase {
         info.groupOwnerID = gids[1]
         info.groupOwnerUUID = groupUUIDs[1].uuid
         try info.apply(to: FilePath(tempURL.path))
-        XCTAssertEqual(try FileInfo(path: FilePath(tempURL.path), keys: .groupOwnerID).groupOwnerID, gids[1])
+        XCTAssertEqual(try FileInfo(at: FilePath(tempURL.path), keys: .groupOwnerID).groupOwnerID, gids[1])
         XCTAssertEqual(
-            try FileInfo(path: tempURL.path, keys: .groupOwnerUUID).groupOwnerUUID.map { UUID(uuid: $0) },
+            try FileInfo(atPath: tempURL.path, keys: .groupOwnerUUID).groupOwnerUUID.map { UUID(uuid: $0) },
             groupUUIDs[1]
         )
 
         info = FileInfo()
         info.groupOwnerUUID = groupUUIDs[2].uuid
         try info.apply(to: FilePath(tempURL.path))
-        XCTAssertEqual(try FileInfo(path: FilePath(tempURL.path), keys: .groupOwnerID).groupOwnerID, gids[1])
+        XCTAssertEqual(try FileInfo(at: FilePath(tempURL.path), keys: .groupOwnerID).groupOwnerID, gids[1])
         XCTAssertEqual(
-            try FileInfo(path: tempURL.path, keys: .groupOwnerUUID).groupOwnerUUID.map { UUID(uuid: $0) },
+            try FileInfo(atPath: tempURL.path, keys: .groupOwnerUUID).groupOwnerUUID.map { UUID(uuid: $0) },
             groupUUIDs[2]
         )
 
@@ -112,18 +112,18 @@ class FileInfoTests: XCTestCase {
         info.groupOwnerID = gids[1]
         info.groupOwnerUUID = groupUUIDs[1].uuid
         try info.apply(to: FileDescriptor(rawValue: handle.fileDescriptor))
-        XCTAssertEqual(try FileInfo(path: FilePath(tempURL.path), keys: .groupOwnerID).groupOwnerID, gids[1])
+        XCTAssertEqual(try FileInfo(at: FilePath(tempURL.path), keys: .groupOwnerID).groupOwnerID, gids[1])
         XCTAssertEqual(
-            try FileInfo(path: tempURL.path, keys: .groupOwnerUUID).groupOwnerUUID.map { UUID(uuid: $0) },
+            try FileInfo(atPath: tempURL.path, keys: .groupOwnerUUID).groupOwnerUUID.map { UUID(uuid: $0) },
             groupUUIDs[1]
         )
 
         info = FileInfo()
         info.groupOwnerUUID = groupUUIDs[2].uuid
         try info.apply(to: FileDescriptor(rawValue: handle.fileDescriptor))
-        XCTAssertEqual(try FileInfo(path: FilePath(tempURL.path), keys: .groupOwnerID).groupOwnerID, gids[1])
+        XCTAssertEqual(try FileInfo(at: FilePath(tempURL.path), keys: .groupOwnerID).groupOwnerID, gids[1])
         XCTAssertEqual(
-            try FileInfo(path: tempURL.path, keys: .groupOwnerUUID).groupOwnerUUID.map { UUID(uuid: $0) },
+            try FileInfo(atPath: tempURL.path, keys: .groupOwnerUUID).groupOwnerUUID.map { UUID(uuid: $0) },
             groupUUIDs[2]
         )
     }
@@ -164,9 +164,9 @@ class FileInfoTests: XCTestCase {
 
     func testVolumeAttributes() throws {
         for info in [
-            try FileInfo(url: URL(filePath: NSOpenStepRootDirectory()), keys: .allVolume.subtracting(.volumeDirectoryCount)),
-            try FileInfo(path: FilePath(NSOpenStepRootDirectory()), keys: .allVolume.subtracting(.volumeDirectoryCount)),
-            try FileInfo(path: NSOpenStepRootDirectory(), keys: .allVolume.subtracting(.volumeDirectoryCount))
+            try FileInfo(at: URL(filePath: NSOpenStepRootDirectory()), keys: .allVolume.subtracting(.volumeDirectoryCount)),
+            try FileInfo(at: FilePath(NSOpenStepRootDirectory()), keys: .allVolume.subtracting(.volumeDirectoryCount)),
+            try FileInfo(atPath: NSOpenStepRootDirectory(), keys: .allVolume.subtracting(.volumeDirectoryCount))
         ] {
             XCTAssertEqual(info.volumeMountPoint, FilePath(NSOpenStepRootDirectory()))
         }
@@ -190,9 +190,9 @@ class FileInfoTests: XCTestCase {
         }
 
         for eachInfo in try [
-            FileInfo(url: tempURL, keys: .finderInfo),
-            FileInfo(path: tempURL.path, keys: .finderInfo),
-            FileInfo(path: FilePath(tempURL.path), keys: .finderInfo)
+            FileInfo(at: tempURL, keys: .finderInfo),
+            FileInfo(atPath: tempURL.path, keys: .finderInfo),
+            FileInfo(at: FilePath(tempURL.path), keys: .finderInfo)
         ] {
             let finderInfo = try XCTUnwrap(eachInfo.finderInfo)
 
@@ -226,14 +226,14 @@ class FileInfoTests: XCTestCase {
             try Data().write(to: tempFile)
             defer { _ = try? FileManager.default.removeItem(at: tempFile) }
 
-            var fileInfo = try FileInfo(path: tempFile.path, keys: .finderInfo)
+            var fileInfo = try FileInfo(atPath: tempFile.path, keys: .finderInfo)
             XCTAssertNil(fileInfo.finderInfo)
 
             fileInfo.finderInfo = fileFinderInfo
             try applier(fileInfo, tempFile)
 
             XCTAssertEqual(
-                try Data(XCTUnwrap(FileInfo(path: tempFile.path, keys: .finderInfo).finderInfo).data),
+                try Data(XCTUnwrap(FileInfo(atPath: tempFile.path, keys: .finderInfo).finderInfo).data),
                 Data([
                     0x61, 0x62, 0x63, 0x64, 0x57, 0x58, 0x59, 0x5a, 0x04, 0x1c, 0x30, 0x39, 0x5b, 0xa0, 0x00, 0x00,
                     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x12, 0x34, 0x56, 0x78
@@ -255,14 +255,14 @@ class FileInfoTests: XCTestCase {
             defer { _ = try? FileManager.default.removeItem(at: tempFolder) }
 
             try FileManager.default.createDirectory(at: tempFolder, withIntermediateDirectories: true)
-            var folderInfo = try FileInfo(path: tempFolder.path, keys: .finderInfo)
+            var folderInfo = try FileInfo(atPath: tempFolder.path, keys: .finderInfo)
             XCTAssertNil(folderInfo.finderInfo)
 
             folderInfo.finderInfo = folderFinderInfo
             try applier(folderInfo, tempFolder)
 
             XCTAssertEqual(
-                try Data(XCTUnwrap(FileInfo(path: tempFolder.path, keys: .finderInfo).finderInfo).data),
+                try Data(XCTUnwrap(FileInfo(atPath: tempFolder.path, keys: .finderInfo).finderInfo).data),
                 Data([
                     0x2b, 0xd7, 0x30, 0x2e, 0x34, 0x85, 0x38, 0xdc, 0x60, 0x0e, 0xcf, 0xc7, 0xa4, 0x60, 0x00, 0x00,
                     0x33, 0xbb, 0x5f, 0x22, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0xab, 0xcd, 0xef, 0x01
@@ -282,7 +282,7 @@ class FileInfoTests: XCTestCase {
 
             try Data().write(to: tempFile)
 
-            var info = try FileInfo(path: tempFile.path, keys: [])
+            var info = try FileInfo(atPath: tempFile.path, keys: [])
             info.permissionsMode = 0o770
 
             var entry = AccessControlList.Entry()
@@ -294,7 +294,7 @@ class FileInfoTests: XCTestCase {
 
             try applier(info, tempFile)
 
-            let newInfo = try FileInfo(path: tempFile.path, keys: [.accessControlList, .permissionsMode])
+            let newInfo = try FileInfo(atPath: tempFile.path, keys: [.accessControlList, .permissionsMode])
             XCTAssertEqual(newInfo.permissionsMode, info.permissionsMode)
             XCTAssertEqual(newInfo.accessControlList, info.accessControlList)
         }
@@ -319,7 +319,7 @@ class FileInfoTests: XCTestCase {
             let (mountPoint: mountPoint, devEntry: devEntry) = try dmgHelper.mountImage(url: imageURL, readOnly: false)
             defer { _ = try? dmgHelper.unmountImage(devEntry: devEntry) }
 
-            var info = try FileInfo(path: mountPoint.path, keys: .volumeName)
+            var info = try FileInfo(atPath: mountPoint.path, keys: .volumeName)
 
             let newName = UUID().uuidString
             info.volumeName = newName

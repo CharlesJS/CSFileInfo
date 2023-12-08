@@ -226,8 +226,8 @@ final class ACLTests: XCTestCase {
         for eachVersion in [11, 13] {
             try emulateOSVersion(eachVersion) {
                 let acls = try [
-                    AccessControlList(path: FilePath(tempURL.path)),
-                    AccessControlList(path: String(tempURL.path))
+                    AccessControlList(at: FilePath(tempURL.path)),
+                    AccessControlList(atPath: String(tempURL.path))
                 ]
 
                 for eachACL in acls {

@@ -37,13 +37,13 @@ extension FileInfo {
         set { self.addedTime = newValue?.timespec }
     }
 
-    public init(url: URL, keys: Keys) throws {
+    public init(at url: URL, keys: Keys) throws {
         guard #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, macCatalyst 14.0, *), versionCheck(11) else {
-            try self.init(path: url.path, keys: keys)
+            try self.init(atPath: url.path, keys: keys)
             return
         }
 
-        try self.init(path: FilePath(url.path), keys: keys)
+        try self.init(at: FilePath(url.path), keys: keys)
     }
 
     public func apply(to url: URL) throws {
