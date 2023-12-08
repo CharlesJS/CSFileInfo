@@ -175,7 +175,7 @@ final class ExtendedAttributeTests: XCTestCase {
             )
 
             XCTAssertEqual(
-                try String(decoding: ExtendedAttribute(url: url, key: key, options: options).data, as: UTF8.self),
+                try String(decoding: ExtendedAttribute(at: url, key: key, options: options).data, as: UTF8.self),
                 expectedAttribute
             )
 
@@ -215,7 +215,7 @@ final class ExtendedAttributeTests: XCTestCase {
                 XCTAssertEqual(($0 as NSError).code, (error as NSError).code)
             }
 
-            XCTAssertThrowsError(try ExtendedAttribute(url: url, key: key, options: options)) {
+            XCTAssertThrowsError(try ExtendedAttribute(at: url, key: key, options: options)) {
                 XCTAssertEqual(($0 as NSError).domain, (error as NSError).domain)
                 XCTAssertEqual(($0 as NSError).code, (error as NSError).code)
             }
@@ -578,7 +578,7 @@ final class ExtendedAttributeTests: XCTestCase {
             XCTAssertEqual(($0 as? CocoaError)?.code, .fileReadUnsupportedScheme)
         }
 
-        XCTAssertThrowsError(try ExtendedAttribute(url: nonFileURL, key: "foo")) {
+        XCTAssertThrowsError(try ExtendedAttribute(at: nonFileURL, key: "foo")) {
             XCTAssertEqual(($0 as? CocoaError)?.code, .fileReadUnsupportedScheme)
         }
 
