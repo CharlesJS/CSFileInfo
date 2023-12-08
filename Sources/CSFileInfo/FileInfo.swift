@@ -412,7 +412,7 @@ public struct FileInfo {
 
     
     @available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, macCatalyst 14.0, *)
-    public init(path: FilePath, keys: Keys) throws {
+    public init(at path: FilePath, keys: Keys) throws {
         let pathString: String
         let attrList: ContiguousArray<UInt8>
         let supports64BitObjectIDs: Bool
@@ -434,7 +434,7 @@ public struct FileInfo {
         try self.init(path: pathString, attrList: attrList, supports64BitObjectIDs: supports64BitObjectIDs)
     }
 
-    public init(path: String, keys: Keys) throws {
+    public init(atPath path: String, keys: Keys) throws {
         let attrList: ContiguousArray<UInt8>
         let supports64BitObjectIDs: Bool
 
@@ -452,11 +452,11 @@ public struct FileInfo {
     }
 
     @available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, macCatalyst 14.0, *)
-    public init(fileDescriptor: FileDescriptor, keys: Keys) throws {
-        try self.init(fileDescriptor: fileDescriptor.rawValue, keys: keys)
+    public init(at fileDescriptor: FileDescriptor, keys: Keys) throws {
+        try self.init(atFileDescriptor: fileDescriptor.rawValue, keys: keys)
     }
 
-    public init(fileDescriptor fd: Int32, keys: Keys) throws {
+    public init(atFileDescriptor fd: Int32, keys: Keys) throws {
         let (attrList, supports64BitObjectIDs) = try Self.getAttrList(fileDescriptor: fd, keys: keys) {
             fgetattrlist(fd, $0, $1, $2, $3)
         }
@@ -511,7 +511,7 @@ public struct FileInfo {
 
         if requestLinkID || requestParentID {
             let mountPoint = try self.getMountPoint(path: path, fileDescriptor: fileDescriptor)
-            let volInfo = try FileInfo(path: mountPoint, keys: [.volumeCapabilities, .volumeSupportedKeys])
+            let volInfo = try FileInfo(atPath: mountPoint, keys: [.volumeCapabilities, .volumeSupportedKeys])
 
             let supports64BitLinkID = volInfo.volumeAllowedKeys?.contains(.fork(fork64BitLinkID)) ?? false
             let supports64BitParentID = volInfo.volumeAllowedKeys?.contains(.common(cmn64BitParentID)) ?? false

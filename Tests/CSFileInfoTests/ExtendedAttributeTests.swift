@@ -163,14 +163,14 @@ final class ExtendedAttributeTests: XCTestCase {
 
             XCTAssertEqual(
                 try String(
-                    decoding: ExtendedAttribute(path: FilePath(url.path), key: key, options: options).data,
+                    decoding: ExtendedAttribute(at: FilePath(url.path), key: key, options: options).data,
                     as: UTF8.self
                 ),
                 expectedAttribute
             )
 
             XCTAssertEqual(
-                try String(decoding: ExtendedAttribute(path: url.path, key: key, options: options).data, as: UTF8.self),
+                try String(decoding: ExtendedAttribute(atPath: url.path, key: key, options: options).data, as: UTF8.self),
                 expectedAttribute
             )
 
@@ -187,7 +187,7 @@ final class ExtendedAttributeTests: XCTestCase {
 
             XCTAssertEqual(
                 try String(
-                    decoding: ExtendedAttribute(fileDescriptor: fd, key: key, options: fdOptions).data,
+                    decoding: ExtendedAttribute(at: fd, key: key, options: fdOptions).data,
                     as: UTF8.self
                 ),
                 expectedAttribute
@@ -195,7 +195,7 @@ final class ExtendedAttributeTests: XCTestCase {
 
             XCTAssertEqual(
                 try String(
-                    decoding: ExtendedAttribute(fileDescriptor: fd.rawValue, key: key, options: fdOptions).data,
+                    decoding: ExtendedAttribute(atFileDescriptor: fd.rawValue, key: key, options: fdOptions).data,
                     as: UTF8.self
                 ),
                 expectedAttribute
@@ -205,12 +205,12 @@ final class ExtendedAttributeTests: XCTestCase {
         func assertThrowsError<E: Error & Equatable>(url: URL, key: String, error: E, traverseLink: Bool = false) {
             let options: ExtendedAttribute.ReadOptions = traverseLink ? [] : [.noTraverseLink]
 
-            XCTAssertThrowsError(try ExtendedAttribute(path: FilePath(url.path), key: key, options: options)) {
+            XCTAssertThrowsError(try ExtendedAttribute(at: FilePath(url.path), key: key, options: options)) {
                 XCTAssertEqual(($0 as NSError).domain, (error as NSError).domain)
                 XCTAssertEqual(($0 as NSError).code, (error as NSError).code)
             }
 
-            XCTAssertThrowsError(try ExtendedAttribute(path: url.path, key: key, options: options)) {
+            XCTAssertThrowsError(try ExtendedAttribute(atPath: url.path, key: key, options: options)) {
                 XCTAssertEqual(($0 as NSError).domain, (error as NSError).domain)
                 XCTAssertEqual(($0 as NSError).code, (error as NSError).code)
             }
