@@ -43,6 +43,7 @@ let package = Package(
             name: "CSFileInfo_Foundation",
             dependencies: [
                 "CSFileInfo",
+                "CSFileInfo_Membership",
                 .product(name: "CSDataProtocol+Foundation", package: "CSDataProtocol"),
                 .product(name: "CSErrors+Foundation", package: "CSErrors"),
                 .product(name: "DataParser+Foundation", package: "DataParser")
