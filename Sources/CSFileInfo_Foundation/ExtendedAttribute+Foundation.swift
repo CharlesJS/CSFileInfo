@@ -43,7 +43,7 @@ extension ExtendedAttribute {
         try self.remove(keys: keys, at: FilePath(url.path), options: options)
     }
 
-    public init(url: URL, key: String, options: ReadOptions = []) throws {
+    public init(at url: URL, key: String, options: ReadOptions = []) throws {
         guard url.isFileURL else { throw CocoaError(.fileReadUnsupportedScheme, url: url) }
 
         guard #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, macCatalyst 14.0, *), versionCheck(11) else {
