@@ -8,6 +8,7 @@
 
 import CSErrors
 import CSFileInfo_Membership
+import System
 
 public enum UserOrGroup: Hashable, CustomStringConvertible {
     case user(User)
@@ -96,6 +97,33 @@ public struct User: Hashable, CustomStringConvertible {
                     mbr_uid_to_uuid(self.id, $0)
                 }
             }
+        }
+    }
+
+    @available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, macCatalyst 14.0, *)
+    public var homeDirectory: FilePath? {
+        get throws {
+            try wrapPwdAPI(getpwuid_r, self.id) {
+                guard #available(macOS 12.0, iOS 15.0, watchOS 8.0, tvOS 15.0, macCatalyst 15.0, *), versionCheck(12) else {
+                    return FilePath(String(cString: $0.pw_dir))
+                }
+
+                return FilePath(platformString: $0.pw_dir)
+            }
+        }
+    }
+
+    public var homeDirectoryStringPath: String? {
+        get throws {
+            guard #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, macCatalyst 14.0, *), versionCheck(11) else {
+                return try wrapPwdAPI(getpwuid_r, self.id) { String(cString: $0.pw_dir) }
+            }
+
+            guard #available(macOS 12.0, iOS 15.0, watchOS 8.0, tvOS 15.0, macCatalyst 15.0, *), versionCheck(12) else {
+                return try self.homeDirectory.map { String(describing: $0) }
+            }
+
+            return try self.homeDirectory?.string
         }
     }
 

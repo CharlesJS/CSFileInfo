@@ -5,8 +5,9 @@
 //  Created by Charles Srstka on 6/3/23.
 //
 
-import XCTest
 @testable import CSFileInfo
+import System
+import XCTest
 
 class UsersAndGroupsTests: XCTestCase {
     private let meUID = getuid()
@@ -75,6 +76,8 @@ class UsersAndGroupsTests: XCTestCase {
         XCTAssertEqual(try user.name, NSUserName())
         XCTAssertEqual(try UUID(uuid: user.uuid), meUUID)
         XCTAssertEqual(user.description, "\(NSUserName()) (UID \(getuid()))")
+        XCTAssertEqual(try user.homeDirectory, FilePath(NSHomeDirectory()))
+        XCTAssertEqual(try user.homeDirectoryStringPath, NSHomeDirectory())
     }
 
     func testUserByID() {
@@ -85,11 +88,15 @@ class UsersAndGroupsTests: XCTestCase {
         XCTAssertEqual(try me.name, NSUserName())
         XCTAssertEqual(try UUID(uuid: me.uuid), meUUID)
         XCTAssertEqual(me.description, "\(NSUserName()) (UID \(getuid()))")
+        XCTAssertEqual(try me.homeDirectory, FilePath(NSHomeDirectory()))
+        XCTAssertEqual(try me.homeDirectoryStringPath, NSHomeDirectory())
 
         XCTAssertEqual(root.id, 0)
         XCTAssertEqual(try root.name, "root")
         XCTAssertEqual(try UUID(uuid: root.uuid), rootUUID)
         XCTAssertEqual(root.description, "root (UID 0)")
+        XCTAssertEqual(try root.homeDirectory, FilePath(NSHomeDirectoryForUser("root")!))
+        XCTAssertEqual(try root.homeDirectoryStringPath, NSHomeDirectoryForUser("root"))
     }
 
     func testUserByName() throws {
@@ -100,11 +107,15 @@ class UsersAndGroupsTests: XCTestCase {
         XCTAssertEqual(try me.name, NSUserName())
         XCTAssertEqual(try UUID(uuid: me.uuid), meUUID)
         XCTAssertEqual(me.description, "\(NSUserName()) (UID \(getuid()))")
+        XCTAssertEqual(try me.homeDirectory, FilePath(NSHomeDirectory()))
+        XCTAssertEqual(try me.homeDirectoryStringPath, NSHomeDirectory())
 
         XCTAssertEqual(root.id, 0)
         XCTAssertEqual(try root.name, "root")
         XCTAssertEqual(try UUID(uuid: root.uuid), rootUUID)
         XCTAssertEqual(root.description, "root (UID 0)")
+        XCTAssertEqual(try root.homeDirectory, FilePath(NSHomeDirectoryForUser("root")!))
+        XCTAssertEqual(try root.homeDirectoryStringPath, NSHomeDirectoryForUser("root"))
 
         XCTAssertNil(try User(name: "fhqwhgads"))
     }
