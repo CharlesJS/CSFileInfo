@@ -12,7 +12,7 @@ import Glibc
 #endif
 
 #if DEBUG
-private var emulatedVersion: Int = .max
+nonisolated(unsafe) private var emulatedVersion: Int = .max
 
 func emulateOSVersion(_ version: Int, closure: () throws -> Void) rethrows {
     emulatedVersion = version

@@ -10,7 +10,7 @@ import CSErrors
 import CSFileInfo_Membership
 import System
 
-public enum UserOrGroup: Hashable, CustomStringConvertible {
+public enum UserOrGroup: Hashable, CustomStringConvertible, Sendable {
     case user(User)
     case group(Group)
 
@@ -67,7 +67,7 @@ public enum UserOrGroup: Hashable, CustomStringConvertible {
     }
 }
 
-public struct User: Hashable, CustomStringConvertible {
+public struct User: Hashable, CustomStringConvertible, Sendable {
     public static var current: User { User(id: getuid()) }
 
     public init(id: uid_t) {
@@ -136,7 +136,7 @@ public struct User: Hashable, CustomStringConvertible {
     }
 }
 
-public struct Group: Hashable, CustomStringConvertible {
+public struct Group: Hashable, CustomStringConvertible, Sendable {
     public static var current: Group { Group(id: getgid()) }
 
     public init(id: gid_t) {

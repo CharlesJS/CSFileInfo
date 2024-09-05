@@ -9,8 +9,8 @@ import DataParser
 import CSDataProtocol
 
 extension FileInfo {
-    public struct FinderInfo: Codable {
-        public enum LabelColor: UInt8 {
+    public struct FinderInfo: Codable, Sendable {
+        public enum LabelColor: UInt8, Sendable {
             case none = 0
             case grey = 1
             case green = 2
@@ -21,7 +21,7 @@ extension FileInfo {
             case orange = 7
         }
 
-        public struct Rect: Codable, Equatable {
+        public struct Rect: Codable, Equatable, Sendable {
             public static let zero = Rect(top: 0, left: 0, bottom: 0, right: 0)
 
             public let top: Int16
@@ -57,7 +57,7 @@ extension FileInfo {
             }
         }
 
-        public struct Point: Codable, Equatable {
+        public struct Point: Codable, Equatable, Sendable {
             public static let zero = Point(v: 0, h: 0)
 
             public let v: Int16
@@ -96,7 +96,7 @@ extension FileInfo {
             public static let volumeOrDirectory: UInt32 = 0x4d414353 // 'MACS'
         }
 
-        public struct FinderFlags: OptionSet, Codable {
+        public struct FinderFlags: OptionSet, Codable, Sendable {
             public static let isOnDesktop               = FinderFlags(rawValue: 0x0001)
             private static let colorMask                = UInt16(0x000e)
             public static let isExtensionHidden         = FinderFlags(rawValue: 0x0010)
@@ -152,7 +152,7 @@ extension FileInfo {
             public init(rawValue: UInt16) { self.rawValue = rawValue }
         }
 
-        public struct ExtendedFinderFlags: OptionSet, Codable {
+        public struct ExtendedFinderFlags: OptionSet, Codable, Sendable {
             public static let extendedFlagsAreInvalid = ExtendedFinderFlags(rawValue: 0x8000)
             public static let hasCustomBadge          = ExtendedFinderFlags(rawValue: 0x0100)
             public static let isBusy                  = ExtendedFinderFlags(rawValue: 0x0080)

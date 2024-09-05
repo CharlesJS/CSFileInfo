@@ -17,17 +17,17 @@ import Darwin
 import Glibc
 #endif
 
-public struct AccessControlList: RangeReplaceableCollection, CustomStringConvertible {
+public struct AccessControlList: RangeReplaceableCollection, CustomStringConvertible, @unchecked Sendable {
     public typealias Element = Entry
     public typealias Index = Int
 
     public struct Entry: Hashable, CustomStringConvertible {
-        public enum Rule: UInt8 {
+        public enum Rule: UInt8, Sendable {
             case allow = 1
             case deny = 2
         }
 
-        public struct Permissions: OptionSet, Hashable, CustomStringConvertible {
+        public struct Permissions: OptionSet, Hashable, CustomStringConvertible, Sendable {
             /// The following permissions apply only to files
             public static let readData = Permissions(ACL_READ_DATA)
             public static let writeData = Permissions(ACL_WRITE_DATA)
@@ -130,7 +130,7 @@ public struct AccessControlList: RangeReplaceableCollection, CustomStringConvert
             }
         }
 
-        public struct Flags: OptionSet, Hashable, CustomStringConvertible {
+        public struct Flags: OptionSet, Hashable, CustomStringConvertible, Sendable {
             public static let inheritToFiles = Flags(rawValue: ACL_ENTRY_FILE_INHERIT.rawValue)
             public static let inheritToDirectories = Flags(rawValue: ACL_ENTRY_DIRECTORY_INHERIT.rawValue)
             public static let limitInheritance = Flags(rawValue: ACL_ENTRY_LIMIT_INHERIT.rawValue)

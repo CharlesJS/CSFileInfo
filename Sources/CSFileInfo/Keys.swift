@@ -12,7 +12,7 @@ import Glibc
 #endif
 
 extension FileInfo {
-    public struct Keys: OptionSet {
+    public struct Keys: OptionSet, Sendable {
         public static let all: Keys = [.allCommon, .allFile, .allDirectory, .allVolume]
         public static let allCommon = Keys.common(0x5fffff5f).union(Keys.fork(0x7fc))
         public static let allFile = Keys.file(0x362f)
