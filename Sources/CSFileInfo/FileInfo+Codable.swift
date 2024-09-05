@@ -95,7 +95,7 @@ extension FileInfo: Codable {
         case fileSystemValidKeys
     }
 
-    private struct FSIDWrapper: Codable {
+    private struct FSIDWrapper: Codable, Sendable {
         let val0: Int32
         let val1: Int32
 
@@ -109,7 +109,7 @@ extension FileInfo: Codable {
         }
     }
 
-    private struct TimespecWrapper: Codable {
+    private struct TimespecWrapper: Codable, Sendable {
         let tv_sec: time_t
         let tv_nsec: CLong
 
@@ -123,7 +123,7 @@ extension FileInfo: Codable {
         }
     }
 
-    private struct UUIDWrapper: Codable {
+    private struct UUIDWrapper: Codable, Sendable {
         let uuidString: String
 
         init(uuid u: uuid_t) throws {

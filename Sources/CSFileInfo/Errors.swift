@@ -13,7 +13,7 @@ import Glibc
 #endif
 
 extension FileInfo {
-    public enum Error: Swift.Error {
+    public enum Error: Swift.Error, Sendable {
         case invalidTypeCode(String)
         case invalidCreatorCode(String)
         case extendedAttributesNotSupported(name: String)

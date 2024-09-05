@@ -12,7 +12,7 @@ import Glibc
 #endif
 
 extension FileInfo {
-    public enum ObjectType: Codable, Equatable {
+    public enum ObjectType: Codable, Equatable, Sendable {
         case noType
         case regular
         case directory
@@ -47,7 +47,7 @@ extension FileInfo {
         }
     }
 
-    public enum ObjectTag: Codable, Equatable {
+    public enum ObjectTag: Codable, Equatable, Sendable {
         case none
         case ufs
         case nfs
@@ -142,7 +142,7 @@ extension FileInfo {
         }
     }
 
-    public struct MountStatus: OptionSet, Codable {
+    public struct MountStatus: OptionSet, Codable, Sendable {
         public static let isMountPoint = MountStatus(rawValue: UInt32(DIR_MNTSTATUS_MNTPOINT))
         public static let isAutomountTrigger = MountStatus(rawValue: UInt32(DIR_MNTSTATUS_TRIGGER))
 
@@ -150,7 +150,7 @@ extension FileInfo {
         public init(rawValue: UInt32) { self.rawValue = rawValue }
     }
 
-    public struct POSIXFlags: OptionSet, Codable {
+    public struct POSIXFlags: OptionSet, Codable, Sendable {
         public static let doNotDump = POSIXFlags(rawValue: UInt32(UF_NODUMP))
         public static let isImmutable = POSIXFlags(rawValue: UInt32(UF_IMMUTABLE))
         public static let isAppendOnly = POSIXFlags(rawValue: UInt32(UF_APPEND))
@@ -169,7 +169,7 @@ extension FileInfo {
         public init(rawValue: UInt32) { self.rawValue = rawValue }
     }
 
-    public struct ExtendedFlags: OptionSet, Codable {
+    public struct ExtendedFlags: OptionSet, Codable, Sendable {
         public static let mayShareBlocks = ExtendedFlags(rawValue: UInt64(EF_MAY_SHARE_BLOCKS))
         public static let noExtendedAttributes = ExtendedFlags(rawValue: UInt64(EF_NO_XATTRS))
         public static let isSyncRoot = ExtendedFlags(rawValue: UInt64(EF_IS_SYNC_ROOT))
@@ -181,7 +181,7 @@ extension FileInfo {
         public init(rawValue: UInt64) { self.rawValue = rawValue }
     }
 
-    public struct UserAccess: OptionSet, Codable {
+    public struct UserAccess: OptionSet, Codable, Sendable {
         public static let canRead = UserAccess(rawValue: UInt32(R_OK))
         public static let canWrite = UserAccess(rawValue: UInt32(W_OK))
         public static let canExecute = UserAccess(rawValue: UInt32(X_OK))
@@ -190,8 +190,8 @@ extension FileInfo {
         public init(rawValue: UInt32) { self.rawValue = rawValue }
     }
 
-    public struct VolumeCapabilities: Equatable, Codable {
-        public struct Format: OptionSet, Codable {
+    public struct VolumeCapabilities: Equatable, Codable, Sendable {
+        public struct Format: OptionSet, Codable, Sendable {
             public static let persistentObjectIDs = Format(rawValue: UInt32(VOL_CAP_FMT_PERSISTENTOBJECTIDS))
             public static let symbolicLinks = Format(rawValue: UInt32(VOL_CAP_FMT_SYMBOLICLINKS))
             public static let hardLinks = Format(rawValue: UInt32(VOL_CAP_FMT_HARDLINKS))
@@ -219,7 +219,7 @@ extension FileInfo {
             public init(rawValue: UInt32) { self.rawValue = rawValue }
         }
 
-        public struct Interfaces: OptionSet, Codable {
+        public struct Interfaces: OptionSet, Codable, Sendable {
             public static let searchfs = Interfaces(rawValue: UInt32(VOL_CAP_INT_SEARCHFS))
             public static let attrlist = Interfaces(rawValue: UInt32(VOL_CAP_INT_ATTRLIST))
             public static let nfsExport = Interfaces(rawValue: UInt32(VOL_CAP_INT_NFSEXPORT))

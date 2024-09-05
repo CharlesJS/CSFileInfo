@@ -17,9 +17,9 @@ final class FileInfoFixtureTests: XCTestCase {
         return Bundle(url: url)!
     }()
 
-    private struct ImageFixture {
-        struct Info: Codable {
-            struct File: Codable {
+    private struct ImageFixture: Sendable {
+        struct Info: Codable, Sendable {
+            struct File: Codable, Sendable {
                 let path: String
                 let fileInfo: FileInfo
             }
@@ -149,7 +149,7 @@ final class FileInfoFixtureTests: XCTestCase {
                 try await withThrowingTaskGroup(of: Void.self) { group in
                     for eachFixture in self.imageFixtures {
                         group.addTask {
-                            try await self.testImageFixture(eachFixture)
+                            try await Self.testImageFixture(eachFixture)
                         }
                     }
 
@@ -209,7 +209,7 @@ final class FileInfoFixtureTests: XCTestCase {
         }
     }
 
-    private func testImageFixture(_ fixture: ImageFixture) async throws {
+    private static func testImageFixture(_ fixture: ImageFixture) async throws {
         var keys: FileInfo.Keys = [.allCommon, .allFile, .allDirectory]
         keys.remove([
             .fullPath, .noFirmLinkPath, .linkID, .parentID, .cloneID,
@@ -260,7 +260,7 @@ final class FileInfoFixtureTests: XCTestCase {
         }
     }
 
-    private func getExpectedInfo(file: ImageFixture.Info.File, imageInfo: ImageFixture.Info) -> FileInfo {
+    private static func getExpectedInfo(file: ImageFixture.Info.File, imageInfo: ImageFixture.Info) -> FileInfo {
         var info = file.fileInfo
 
         if !imageInfo.supportsTimeZones {
@@ -287,7 +287,7 @@ final class FileInfoFixtureTests: XCTestCase {
         return info
     }
 
-    private func diffInfo(
+    private static func diffInfo(
         _ info: [String : AnyHashable],
         expect expectedInfo: [String : AnyHashable],
         imageName: String,

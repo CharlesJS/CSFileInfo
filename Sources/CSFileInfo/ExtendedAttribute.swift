@@ -14,8 +14,8 @@ import Darwin
 import Glibc
 #endif
 
-public struct ExtendedAttribute: Codable, Hashable {
-    public struct ReadOptions: OptionSet {
+public struct ExtendedAttribute: Codable, Hashable, Sendable {
+    public struct ReadOptions: OptionSet, Sendable {
         public let rawValue: Int32
         public init(rawValue: Int32) { self.rawValue = rawValue }
 
@@ -23,7 +23,7 @@ public struct ExtendedAttribute: Codable, Hashable {
         public static let showCompression = ReadOptions(rawValue: XATTR_SHOWCOMPRESSION)
     }
     
-    public struct WriteOptions: OptionSet {
+    public struct WriteOptions: OptionSet, Sendable {
         public let rawValue: Int32
         public init(rawValue: Int32) { self.rawValue = rawValue }
 
@@ -32,7 +32,7 @@ public struct ExtendedAttribute: Codable, Hashable {
         public static let replace = WriteOptions(rawValue: XATTR_REPLACE)
     }
 
-    public struct RemoveOptions: OptionSet {
+    public struct RemoveOptions: OptionSet, Sendable {
         public let rawValue: Int32
         public init(rawValue: Int32) { self.rawValue = rawValue }
 

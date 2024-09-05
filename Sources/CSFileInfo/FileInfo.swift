@@ -17,7 +17,7 @@ import Darwin
 import Glibc
 #endif
 
-public struct FileInfo {
+public struct FileInfo: Sendable {
     public let filename: String?
     @available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, macCatalyst 14.0, *)
     public var path: FilePath? { self.pathString.map { FilePath($0) } }
