@@ -33,8 +33,6 @@ package func versionCheck(_ version: Int) -> Bool { emulatedVersion >= version }
 @inline(__always) package func versionCheck(_: Int) -> Bool { true }
 #endif
 
-extension fsid_t: Equatable {
-    public static func ==(lhs: fsid_t, rhs: fsid_t) -> Bool {
-        return lhs.val.0 == rhs.val.0 && lhs.val.1 == rhs.val.1
-    }
+func fsidsEqual(_ lhs: fsid_t?, _ rhs: fsid_t?) -> Bool {
+    lhs?.val.0 == rhs?.val.0 && lhs?.val.1 == rhs?.val.1
 }

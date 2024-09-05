@@ -28,8 +28,8 @@ extension FileInfo: Equatable {
         lhs.noFirmLinkPath == rhs.noFirmLinkPath &&
         lhs.deviceID == rhs.deviceID &&
         lhs.realDeviceID == rhs.realDeviceID &&
-        lhs.fileSystemID == rhs.fileSystemID &&
-        lhs.realFileSystemID == rhs.realFileSystemID &&
+        fsidsEqual(lhs.fileSystemID, rhs.fileSystemID) &&
+        fsidsEqual(lhs.realFileSystemID, rhs.realFileSystemID) &&
         lhs.objectType == rhs.objectType &&
         lhs.objectTag == rhs.objectTag &&
         lhs.inode == rhs.inode &&
