@@ -18,8 +18,8 @@ class InternalTests: XCTestCase {
     }
 
     func testFSIDEquality() {
-        XCTAssertEqual(fsid_t(val: (1, 2)), fsid_t(val: (1, 2)))
-        XCTAssertNotEqual(fsid_t(val: (1, 2)), fsid_t(val: (2, 2)))
-        XCTAssertNotEqual(fsid_t(val: (1, 2)), fsid_t(val: (1, 1)))
+        XCTAssertTrue(fsidsEqual(fsid_t(val: (1, 2)), fsid_t(val: (1, 2))))
+        XCTAssertFalse(fsidsEqual(fsid_t(val: (1, 2)), fsid_t(val: (2, 2))))
+        XCTAssertFalse(fsidsEqual(fsid_t(val: (1, 2)), fsid_t(val: (1, 1))))
     }
 }
