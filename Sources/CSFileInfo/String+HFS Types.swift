@@ -51,6 +51,10 @@ extension String {
         }
     }
 
+    public init(macOSRomanData: some Sequence<UInt8>) {
+        self = String(macOSRomanData.map { Self.convertToMacOSRoman($0) })
+    }
+
     public var hfsTypeCode: UInt32? {
         if self.isEmpty { return 0 }
 
@@ -60,5 +64,19 @@ extension String {
         }
 
         return bytes.withUnsafeBytes { UInt32(bigEndian: $0.load(as: UInt32.self)) }
+    }
+
+    public func macOSRomanCString(allowLossyConversion: Bool = false) -> ContiguousArray<UInt8>? {
+        var bytes: ContiguousArray<UInt8> = []
+
+        for character in self {
+            if let byte = Self.convertFromMacOSRoman(character) {
+                bytes.append(byte)
+            } else if !allowLossyConversion {
+                return nil
+            }
+        }
+
+        return bytes
     }
 }
