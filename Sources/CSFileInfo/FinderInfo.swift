@@ -5,8 +5,9 @@
 //  Created by Charles Srstka on 11/5/17.
 //
 
-import DataParser
 import CSDataProtocol
+import DataParser
+import HFSTypeConversion
 
 extension FileInfo {
     public struct FinderInfo: Codable, Sendable {
