@@ -163,11 +163,18 @@ class FileInfoTests: XCTestCase {
     }
 
     func testVolumeAttributes() throws {
-        for info in [
-            try FileInfo(at: URL(filePath: NSOpenStepRootDirectory()), keys: .allVolume.subtracting(.volumeDirectoryCount)),
+        var infos = [
             try FileInfo(at: FilePath(NSOpenStepRootDirectory()), keys: .allVolume.subtracting(.volumeDirectoryCount)),
             try FileInfo(atPath: NSOpenStepRootDirectory(), keys: .allVolume.subtracting(.volumeDirectoryCount))
-        ] {
+        ]
+
+#if Foundation
+        infos.append(
+            try FileInfo(at: URL(filePath: NSOpenStepRootDirectory()), keys: .allVolume.subtracting(.volumeDirectoryCount))
+        )
+#endif
+
+        for info in infos {
             XCTAssertEqual(info.volumeMountPoint, FilePath(NSOpenStepRootDirectory()))
         }
     }
@@ -189,11 +196,16 @@ class FileInfoTests: XCTestCase {
             }
         }
 
-        for eachInfo in try [
-            FileInfo(at: tempURL, keys: .finderInfo),
+        var infos = try [
             FileInfo(atPath: tempURL.path, keys: .finderInfo),
             FileInfo(at: FilePath(tempURL.path), keys: .finderInfo)
-        ] {
+        ]
+
+#if Foundation
+        infos.append(try FileInfo(at: tempURL, keys: .finderInfo))
+#endif
+
+        for eachInfo in infos {
             let finderInfo = try XCTUnwrap(eachInfo.finderInfo)
 
             XCTAssertEqual(Data(finderInfo.data), rawFinderInfo)
@@ -206,11 +218,14 @@ class FileInfoTests: XCTestCase {
     }
 
     func testWriteFinderInfo() throws {
-        let appliers: [(FileInfo, URL) throws -> Void] = [
-            { try $0.apply(to: $1) },
+        var appliers: [(FileInfo, URL) throws -> Void] = [
             { try $0.apply(to: FilePath($1.path)) },
             { try $0.apply(toPath: $1.path) }
         ]
+
+#if Foundation
+        appliers.append({ try $0.apply(to: $1) })
+#endif
 
         var fileFinderInfo = FileInfo.FinderInfo(objectType: .regular)
         fileFinderInfo.type = "abcd"
@@ -272,11 +287,16 @@ class FileInfoTests: XCTestCase {
     }
 
     func testWriteSecurityInfo() throws {
-        for applier: (FileInfo, URL) throws -> Void in [
-            { try $0.apply(to: $1) },
+        var appliers: [(FileInfo, URL) throws -> Void] = [
             { try $0.apply(to: FilePath($1.path)) },
             { try $0.apply(toPath: $1.path) }
-        ] {
+        ]
+
+#if Foundation
+        appliers.append({ try $0.apply(to: $1) })
+#endif
+        
+        for applier in appliers {
             let tempFile = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
             defer { _ = try? FileManager.default.removeItem(at: tempFile) }
 
@@ -311,11 +331,16 @@ class FileInfoTests: XCTestCase {
 
         try dmgHelper.createImage(url: imageURL, size: 10 * 1024)
 
-        for applier: (FileInfo, URL) throws -> Void in [
-            { try $0.apply(to: $1) },
+        var appliers: [(FileInfo, URL) throws -> Void] = [
             { try $0.apply(to: FilePath($1.path)) },
             { try $0.apply(toPath: $1.path) }
-        ] {
+        ]
+
+#if Foundation
+        appliers.append({ try $0.apply(to: $1) })
+#endif
+
+        for applier in appliers {
             let (mountPoint: mountPoint, devEntry: devEntry) = try dmgHelper.mountImage(url: imageURL, readOnly: false)
             defer { _ = try? dmgHelper.unmountImage(devEntry: devEntry) }
 

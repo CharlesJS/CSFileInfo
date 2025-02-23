@@ -1,4 +1,4 @@
-// swift-tools-version: 5.10
+// swift-tools-version: 6.1
 
 import PackageDescription
 
@@ -9,22 +9,33 @@ let package = Package(
         .iOS(.v13),
         .tvOS(.v13),
         .watchOS(.v6),
-        .macCatalyst(.v13)
+        .macCatalyst(.v13),
+        .visionOS(.v1),
     ],
     products: [
         .library(
             name: "CSFileInfo",
             targets: ["CSFileInfo"]
         ),
-        .library(
-            name: "CSFileInfo+Foundation",
-            targets: ["CSFileInfo_Foundation"]
-        ),
+    ],
+    traits: [
+        "Foundation",
     ],
     dependencies: [
-        .package(url: "https://github.com/CharlesJS/CSDataProtocol", from: "0.1.0"),
-        .package(url: "https://github.com/CharlesJS/CSErrors", from: "1.2.5"),
-        .package(url: "https://github.com/CharlesJS/DataParser", from: "0.3.2"),
+        .package(
+            url: "https://github.com/CharlesJS/CSErrors",
+            from: "2.0.0",
+            traits: [
+                .trait(name: "Foundation", condition: .when(traits: ["Foundation"]))
+            ]
+        ),
+        .package(
+            url: "https://github.com/CharlesJS/DataParser",
+            from: "0.5.0",
+            traits: [
+                .trait(name: "Foundation", condition: .when(traits: ["Foundation"]))
+            ]
+        ),
         .package(url: "https://github.com/CharlesJS/HFSTypeConversion", from: "0.1.1"),
         .package(url: "https://github.com/swift-extras/swift-extras-base64.git", from: "0.7.0"),
     ],
@@ -33,7 +44,6 @@ let package = Package(
         .target(
             name: "CSFileInfo",
             dependencies: [
-                "CSDataProtocol",
                 "CSErrors",
                 "DataParser",
                 "HFSTypeConversion",
@@ -41,19 +51,9 @@ let package = Package(
                 .product(name: "ExtrasBase64", package: "swift-extras-base64"),
             ]
         ),
-        .target(
-            name: "CSFileInfo_Foundation",
-            dependencies: [
-                "CSFileInfo",
-                "CSFileInfo_Membership",
-                .product(name: "CSDataProtocol+Foundation", package: "CSDataProtocol"),
-                .product(name: "CSErrors+Foundation", package: "CSErrors"),
-                .product(name: "DataParser+Foundation", package: "DataParser")
-            ]
-        ),
         .testTarget(
             name: "CSFileInfoTests",
-            dependencies: ["CSFileInfo_Foundation"],
+            dependencies: ["CSFileInfo"],
             resources: [
                 .copy("fixtures")
             ]

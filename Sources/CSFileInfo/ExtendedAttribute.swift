@@ -14,6 +14,14 @@ import Darwin
 import Glibc
 #endif
 
+#if Foundation
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
+import Foundation
+#endif
+#endif
+
 public struct ExtendedAttribute: Codable, Hashable, Sendable {
     public struct ReadOptions: OptionSet, Sendable {
         public let rawValue: Int32
@@ -38,6 +46,18 @@ public struct ExtendedAttribute: Codable, Hashable, Sendable {
 
         public static let noTraverseLink = RemoveOptions(rawValue: XATTR_NOFOLLOW)
     }
+
+#if Foundation
+    public static func list(at url: URL, options: ReadOptions = []) throws -> [ExtendedAttribute] {
+        guard url.isFileURL else { throw CocoaError(.fileReadUnsupportedScheme, url: url) }
+
+        guard #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, macCatalyst 14.0, *), versionCheck(11) else {
+            return try self.list(atPath: url.path, options: options)
+        }
+
+        return try self.list(at: FilePath(url.path), options: options)
+    }
+#endif
 
     @available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, macCatalyst 14.0, *)
     public static func list(at path: FilePath, options: ReadOptions = []) throws -> [ExtendedAttribute] {
@@ -123,6 +143,19 @@ public struct ExtendedAttribute: Codable, Hashable, Sendable {
         try self.write(attrs, to: FilePath(path), options: options)
     }
 
+#if Foundation
+    public static func write(_ attrs: some Sequence<ExtendedAttribute>, to url: URL, options: WriteOptions = []) throws {
+        guard url.isFileURL else { throw CocoaError(.fileWriteUnsupportedScheme, url: url) }
+
+        guard #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, macCatalyst 14.0, *), versionCheck(11) else {
+            try self.write(attrs, toPath: url.path, options: options)
+            return
+        }
+
+        try self.write(attrs, to: FilePath(url.path), options: options)
+    }
+#endif
+
     @available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, macCatalyst 14.0, *)
     public static func remove(keys: some Sequence<String>, at path: FilePath, options: RemoveOptions = []) throws {
         let openOptions: FileDescriptor.OpenOptions = options.contains(.noTraverseLink) ? .symlink : []
@@ -149,6 +182,20 @@ public struct ExtendedAttribute: Codable, Hashable, Sendable {
 
         try self.remove(keys: keys, at: FilePath(path), options: options)
     }
+
+#if Foundation
+    public static func remove(keys: some Sequence<String>, at url: URL, options: RemoveOptions = []) throws {
+        guard url.isFileURL else { throw CocoaError(.fileWriteUnsupportedScheme, url: url) }
+
+
+        guard #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, macCatalyst 14.0, *), versionCheck(11) else {
+            try self.remove(keys: keys, atPath: url.path, options: options)
+            return
+        }
+
+        try self.remove(keys: keys, at: FilePath(url.path), options: options)
+    }
+#endif
 
     @available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, macCatalyst 14.0, *)
     public static func remove(keys: some Sequence<String>, at fd: FileDescriptor, options: RemoveOptions = []) throws {
@@ -196,6 +243,19 @@ public struct ExtendedAttribute: Codable, Hashable, Sendable {
 
         try self.init(at: FilePath(path), key: key, options: options)
     }
+
+#if Foundation
+    public init(at url: URL, key: String, options: ReadOptions = []) throws {
+        guard url.isFileURL else { throw CocoaError(.fileReadUnsupportedScheme, url: url) }
+
+        guard #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, macCatalyst 14.0, *), versionCheck(11) else {
+            try self.init(atPath: url.path, key: key, options: options)
+            return
+        }
+
+        try self.init(at: FilePath(url.path), key: key, options: options)
+    }
+#endif
 
     private init(path: String, cPath: UnsafePointer<CChar>, key: String, options: ReadOptions) throws {
         let bufsize = try callPOSIXFunction(expect: .nonNegative, path: path) {
@@ -252,6 +312,19 @@ public struct ExtendedAttribute: Codable, Hashable, Sendable {
 
         return try self.write(to: FilePath(path), options: options)
     }
+
+#if Foundation
+    public func write(to url: URL, options: WriteOptions = []) throws {
+        guard url.isFileURL else { throw CocoaError(.fileWriteUnsupportedScheme, url: url) }
+
+        guard #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, macCatalyst 14.0, *), versionCheck(11) else {
+            try self.write(toPath: url.path, options: options)
+            return
+        }
+
+        try self.write(to: FilePath(url.path), options: options)
+    }
+#endif
 
     private func write(path: String, cPath: UnsafePointer<CChar>, options: WriteOptions) throws {
         try self.data.withUnsafeBytes { bytes in

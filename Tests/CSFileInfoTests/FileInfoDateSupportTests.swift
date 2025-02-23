@@ -6,10 +6,10 @@
 //
 
 @testable import CSFileInfo
-@testable import CSFileInfo_Foundation
 import XCTest
 
 class FileInfoDateSupportTests: XCTestCase {
+#if Foundation
     func testDates() {
         let dateProperties: [(WritableKeyPath<FileInfo, timespec?>, WritableKeyPath<FileInfo, Date?>)] = [
             (\.creationTime, \.creationDate),
@@ -42,4 +42,5 @@ class FileInfoDateSupportTests: XCTestCase {
         info.attributeModificationTime = timespec(tv_sec: 12345678, tv_nsec: 500000000)
         XCTAssertEqual(info.attributeModificationDate!.timeIntervalSince1970, 12345678.5, accuracy: 0.001)
     }
+#endif
 }

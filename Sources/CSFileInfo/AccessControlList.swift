@@ -6,7 +6,6 @@
 //
 //
 
-import CSDataProtocol
 import CSErrors
 import ExtrasBase64
 import System
@@ -347,28 +346,22 @@ public struct AccessControlList: RangeReplaceableCollection, CustomStringConvert
         try self.init(acl: acl, isDirectory: isDirectory)
     }
 
-    public init(data: some DataProtocol, nativeRepresentation: Bool = false, isDirectory: Bool) throws {
-        if data.regions.count == 1, let region = data.regions.first {
-            try self.init(region: region, nativeRepresentation: nativeRepresentation, isDirectory: isDirectory)
-        } else {
-            try self.init(
-                region: ContiguousArray(data),
-                nativeRepresentation: nativeRepresentation,
-                isDirectory: isDirectory
-            )
-        }
-    }
-
-    private init(region: some ContiguousBytes, nativeRepresentation: Bool, isDirectory: Bool) throws {
-        let acl = try region.withUnsafeBytes {
-            guard let acl = nativeRepresentation ? acl_copy_int_native($0.baseAddress) : acl_copy_int($0.baseAddress) else {
-                throw errno()
-            }
-
-            return acl
+    public init(data: some Collection<UInt8>, nativeRepresentation: Bool = false, isDirectory: Bool) throws {
+        let acl = try data.withContiguousStorageIfAvailable {
+            try Self.makeACL(bytes: UnsafeRawBufferPointer($0), nativeRepresentation: nativeRepresentation)
+        } ?? ContiguousArray(data).withUnsafeBytes {
+            try Self.makeACL(bytes: $0, nativeRepresentation: nativeRepresentation)
         }
 
         try self.init(acl: acl, isDirectory: isDirectory)
+    }
+
+    private static func makeACL(bytes: UnsafeRawBufferPointer, nativeRepresentation isNative: Bool) throws -> acl_t {
+        guard let acl = isNative ? acl_copy_int_native(bytes.baseAddress) : acl_copy_int(bytes.baseAddress) else {
+            throw errno()
+        }
+
+        return acl
     }
 
     private init(acl: acl_t, isDirectory: Bool) throws {
@@ -397,7 +390,7 @@ public struct AccessControlList: RangeReplaceableCollection, CustomStringConvert
         }
     }
 
-    public func dataRepresentation(native: Bool = false) throws -> some DataProtocol {
+    public func dataRepresentation(native: Bool = false) throws -> some Collection<UInt8> {
         let acl = self.aclForReading
         let size = acl_size(acl)
 

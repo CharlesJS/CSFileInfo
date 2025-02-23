@@ -5,7 +5,6 @@
 //  Created by Charles Srstka on 11/5/17.
 //
 
-import CSDataProtocol
 import DataParser
 import HFSTypeConversion
 
@@ -30,7 +29,7 @@ extension FileInfo {
             public let bottom: Int16
             public let right: Int16
 
-            public var data: some DataProtocol {
+            public var data: some Collection<UInt8> {
                 ContiguousArray<UInt8>(unsafeUninitializedCapacity: 8) { byteBuffer, count in
                     byteBuffer.withMemoryRebound(to: Int16.self) { buffer in
                         buffer[0] = self.top.bigEndian
@@ -64,7 +63,7 @@ extension FileInfo {
             public let v: Int16
             public let h: Int16
 
-            public var data: some DataProtocol {
+            public var data: some Collection<UInt8> {
                 ContiguousArray<UInt8>(unsafeUninitializedCapacity: 4) { byteBuffer, count in
                     byteBuffer.withMemoryRebound(to: Int16.self) { buffer in
                         buffer[0] = self.v.bigEndian
@@ -209,7 +208,7 @@ extension FileInfo {
                 }
             }
 
-            var data: some DataProtocol {
+            var data: some Collection<UInt8> {
                 switch self {
                 case .file(isSymbolicLink: _, typeCode: let type, creatorCode: let creator, reserved: let rsrv):
 
@@ -392,7 +391,7 @@ extension FileInfo {
         private var reservedFinderInfo: UInt16
         private var reservedExtendedFinderInfo: UInt16
 
-        public var data: some DataProtocol {
+        public var data: some Collection<UInt8> {
             var data: ContiguousArray<UInt8> = []
 
             switch self.typeSpecificData {

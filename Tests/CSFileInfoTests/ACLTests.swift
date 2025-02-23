@@ -1,6 +1,5 @@
 import CSErrors
 @testable import CSFileInfo
-@testable import CSFileInfo_Foundation
 import DataParser
 import System
 import XCTest
