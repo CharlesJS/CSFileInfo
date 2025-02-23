@@ -108,14 +108,21 @@ final class ExtendedAttributeTests: XCTestCase {
 
     private func assertXattrs(_ url: URL, _ dict: [String : String], options: ExtendedAttribute.ReadOptions = []) {
         let xattrs = dict.map { self.makeXattr(key: $0.key, value: $0.value) }
+
+#if Foundation
         XCTAssertEqual(try Set(ExtendedAttribute.list(at: url, options: options)), Set(xattrs))
+#endif
+        XCTAssertEqual(try Set(ExtendedAttribute.list(at: FilePath(url.path), options: options)), Set(xattrs))
+        XCTAssertEqual(try Set(ExtendedAttribute.list(atPath: url.path, options: options)), Set(xattrs))
     }
 
     func testListExtendedAttributes() throws {
         func assertListEqual(_ url: URL, _ list: [String : String], options: ExtendedAttribute.ReadOptions = []) {
             let attrs = Set(list.map { self.makeXattr(key: $0.key, value: $0.value) })
 
+#if Foundation
             XCTAssertEqual(try Set(ExtendedAttribute.list(at: url, options: options)), attrs)
+#endif
             XCTAssertEqual(try Set(ExtendedAttribute.list(at: FilePath(url.path), options: options)), attrs)
             XCTAssertEqual(try Set(ExtendedAttribute.list(atPath: url.path, options: options)), attrs)
 
@@ -128,14 +135,15 @@ final class ExtendedAttributeTests: XCTestCase {
         }
 
         let nonexistentFile = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+#if Foundation
         XCTAssertThrowsError(try ExtendedAttribute.list(at: nonexistentFile)) { XCTAssertTrue($0.isFileNotFoundError) }
-        XCTAssertThrowsError(try ExtendedAttribute.list(atPath: nonexistentFile.path)) {
-            XCTAssertTrue($0.isFileNotFoundError)
-        }
+#endif
         XCTAssertThrowsError(try ExtendedAttribute.list(at: FilePath(nonexistentFile.path))) {
             XCTAssertTrue($0.isFileNotFoundError)
         }
-
+        XCTAssertThrowsError(try ExtendedAttribute.list(atPath: nonexistentFile.path)) {
+            XCTAssertTrue($0.isFileNotFoundError)
+        }
         assertListEqual(self.fileWithNoExtendedAttributes, [:])
         assertListEqual(self.fileWithOneExtendedAttribute, ["foo" : "lish"])
         assertListEqual(self.fileWithMultipleExtendedAttributes, ["bar" : "barian", "baz" : "zerk"])
@@ -161,6 +169,13 @@ final class ExtendedAttributeTests: XCTestCase {
         func assertGetAttribute(url: URL, key: String, expectedAttribute: String, traverseLink: Bool = false) throws {
             let options: ExtendedAttribute.ReadOptions = traverseLink ? [] : [.noTraverseLink]
 
+#if Foundation
+            XCTAssertEqual(
+                try String(decoding: ExtendedAttribute(at: url, key: key, options: options).data, as: UTF8.self),
+                expectedAttribute
+            )
+#endif
+
             XCTAssertEqual(
                 try String(
                     decoding: ExtendedAttribute(at: FilePath(url.path), key: key, options: options).data,
@@ -171,11 +186,6 @@ final class ExtendedAttributeTests: XCTestCase {
 
             XCTAssertEqual(
                 try String(decoding: ExtendedAttribute(atPath: url.path, key: key, options: options).data, as: UTF8.self),
-                expectedAttribute
-            )
-
-            XCTAssertEqual(
-                try String(decoding: ExtendedAttribute(at: url, key: key, options: options).data, as: UTF8.self),
                 expectedAttribute
             )
 
@@ -205,6 +215,13 @@ final class ExtendedAttributeTests: XCTestCase {
         func assertThrowsError<E: Error & Equatable>(url: URL, key: String, error: E, traverseLink: Bool = false) {
             let options: ExtendedAttribute.ReadOptions = traverseLink ? [] : [.noTraverseLink]
 
+#if Foundation
+            XCTAssertThrowsError(try ExtendedAttribute(at: url, key: key, options: options)) {
+                XCTAssertEqual(($0 as NSError).domain, (error as NSError).domain)
+                XCTAssertEqual(($0 as NSError).code, (error as NSError).code)
+            }
+#endif
+
             XCTAssertThrowsError(try ExtendedAttribute(at: FilePath(url.path), key: key, options: options)) {
                 XCTAssertEqual(($0 as NSError).domain, (error as NSError).domain)
                 XCTAssertEqual(($0 as NSError).code, (error as NSError).code)
@@ -214,15 +231,14 @@ final class ExtendedAttributeTests: XCTestCase {
                 XCTAssertEqual(($0 as NSError).domain, (error as NSError).domain)
                 XCTAssertEqual(($0 as NSError).code, (error as NSError).code)
             }
-
-            XCTAssertThrowsError(try ExtendedAttribute(at: url, key: key, options: options)) {
-                XCTAssertEqual(($0 as NSError).domain, (error as NSError).domain)
-                XCTAssertEqual(($0 as NSError).code, (error as NSError).code)
-            }
         }
 
         let nonexistentFile = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+#if Foundation
         assertThrowsError(url: nonexistentFile, key: "foo", error: CocoaError(.fileReadNoSuchFile))
+#else
+        assertThrowsError(url: nonexistentFile, key: "foo", error: Errno.noSuchFileOrDirectory)
+#endif
 
         assertThrowsError(url: self.fileWithNoExtendedAttributes, key: "foo", error: Errno.attributeNotFound)
 
@@ -334,7 +350,11 @@ final class ExtendedAttributeTests: XCTestCase {
 
         self.assertXattrs(testFile, [:])
 
+#if Foundation
         try self.makeXattr(key: "one", value: "uno").write(to: testFile)
+#else
+        try self.makeXattr(key: "one", value: "uno").write(to: FilePath(testFile.path))
+#endif
         self.assertXattrs(testFile, ["one": "uno"])
 
         try self.makeXattr(key: "two", value: "dos").write(to: FilePath(testFile.path))
@@ -343,6 +363,7 @@ final class ExtendedAttributeTests: XCTestCase {
         try self.makeXattr(key: "three", value: "tres").write(toPath: testFile.path)
         self.assertXattrs(testFile, ["one": "uno", "two": "dos", "three": "tres"])
 
+#if Foundation
         try ExtendedAttribute.write(
             [
                 .init(key: "four", data: "cuatro".data(using: .utf8)!),
@@ -350,6 +371,15 @@ final class ExtendedAttributeTests: XCTestCase {
             ],
             to: testFile
         )
+#else
+        try ExtendedAttribute.write(
+            [
+                .init(key: "four", data: "cuatro".data(using: .utf8)!),
+                .init(key: "five", data: "cinco".data(using: .utf8)!)
+            ],
+            to: FilePath(testFile.path)
+        )
+#endif
         self.assertXattrs(testFile, ["one": "uno", "two": "dos", "three": "tres", "four": "cuatro", "five": "cinco"])
 
         try ExtendedAttribute.write(
@@ -411,8 +441,13 @@ final class ExtendedAttributeTests: XCTestCase {
         try FileManager.default.createSymbolicLink(at: link, withDestinationURL: orig)
         defer { _ = try? FileManager.default.removeItem(at: link) }
 
+#if Foundation
         try self.makeXattr(key: "a", value: "A").write(to: link, options: .noTraverseLink)
         try self.makeXattr(key: "b", value: "B").write(to: link, options: [])
+#else
+        try self.makeXattr(key: "a", value: "A").write(to: FilePath(link.path), options: .noTraverseLink)
+        try self.makeXattr(key: "b", value: "B").write(to: FilePath(link.path), options: [])
+#endif
         self.assertXattrs(link, ["a": "A"], options: .noTraverseLink)
         self.assertXattrs(orig, ["b": "B"], options: .noTraverseLink)
 
@@ -426,6 +461,7 @@ final class ExtendedAttributeTests: XCTestCase {
         self.assertXattrs(link, ["a": "A", "c": "C", "e": "E"], options: .noTraverseLink)
         self.assertXattrs(orig, ["b": "B", "d": "D", "f": "F"], options: .noTraverseLink)
 
+#if Foundation
         try ExtendedAttribute.write(
             [self.makeXattr(key: "g", value: "G"), self.makeXattr(key: "h", value: "H")],
             to: link,
@@ -436,6 +472,18 @@ final class ExtendedAttributeTests: XCTestCase {
             to: link,
             options: []
         )
+#else
+        try ExtendedAttribute.write(
+            [self.makeXattr(key: "g", value: "G"), self.makeXattr(key: "h", value: "H")],
+            to: FilePath(link.path),
+            options: .noTraverseLink
+        )
+        try ExtendedAttribute.write(
+            [self.makeXattr(key: "i", value: "I"), self.makeXattr(key: "j", value: "J")],
+            to: FilePath(link.path),
+            options: []
+        )
+#endif
         self.assertXattrs(link, ["a": "A", "c": "C", "e": "E", "g": "G", "h": "H"], options: .noTraverseLink)
         self.assertXattrs(orig, ["b": "B", "d": "D", "f": "F", "i": "I", "j": "J"], options: .noTraverseLink)
 
@@ -488,7 +536,11 @@ final class ExtendedAttributeTests: XCTestCase {
         defer { _ = try? FileManager.default.removeItem(at: testFile) }
 
         for eachChar in "abcdefghi" {
+#if Foundation
             try self.makeXattr(key: String(eachChar), value: String(eachChar).uppercased()).write(to: testFile)
+#else
+            try self.makeXattr(key: String(eachChar), value: String(eachChar).uppercased()).write(toPath: testFile.path)
+#endif
         }
 
         self.assertXattrs(
@@ -496,7 +548,11 @@ final class ExtendedAttributeTests: XCTestCase {
             ["a": "A", "b": "B", "c": "C", "d": "D", "e": "E", "f": "F", "g": "G", "h": "H", "i": "I"]
         )
 
+#if Foundation
         try ExtendedAttribute.remove(keys: ["a", "b"], at: testFile)
+#else
+        try ExtendedAttribute.remove(keys: ["a", "b"], atPath: testFile.path)
+#endif
         self.assertXattrs(testFile, ["c": "C", "d": "D", "e": "E", "f": "F", "g": "G", "h": "H", "i": "I"])
 
         try ExtendedAttribute.remove(keys: ["c", "d"], at: FilePath(testFile.path))
@@ -527,8 +583,13 @@ final class ExtendedAttributeTests: XCTestCase {
         for eachChar in "abcdefghijkl" {
             let xattr = self.makeXattr(key: String(eachChar), value: String(eachChar).uppercased())
 
+#if Foundation
             try xattr.write(to: orig)
             try xattr.write(to: link, options: .noTraverseLink)
+#else
+            try xattr.write(to: FilePath(orig.path))
+            try xattr.write(to: FilePath(link.path), options: .noTraverseLink)
+#endif
         }
 
         self.assertXattrs( orig, [
@@ -544,8 +605,13 @@ final class ExtendedAttributeTests: XCTestCase {
             options: .noTraverseLink
         )
 
+#if Foundation
         try ExtendedAttribute.remove(keys: ["a", "b"], at: link, options: .noTraverseLink)
         try ExtendedAttribute.remove(keys: ["c", "d"], at: link, options: [])
+#else
+        try ExtendedAttribute.remove(keys: ["a", "b"], at: FilePath(link.path), options: .noTraverseLink)
+        try ExtendedAttribute.remove(keys: ["c", "d"], at: FilePath(link.path), options: [])
+#endif
         self.assertXattrs(
             orig,
             ["a": "A", "b": "B", "e": "E", "f": "F", "g": "G", "h": "H", "i": "I", "j": "J", "k": "K", "l": "L"]
@@ -556,8 +622,8 @@ final class ExtendedAttributeTests: XCTestCase {
             options: .noTraverseLink
         )
 
-        try ExtendedAttribute.remove(keys: ["e", "f"], at: link, options: .noTraverseLink)
-        try ExtendedAttribute.remove(keys: ["g", "h"], at: link, options: [])
+        try ExtendedAttribute.remove(keys: ["e", "f"], at: FilePath(link.path), options: .noTraverseLink)
+        try ExtendedAttribute.remove(keys: ["g", "h"], at: FilePath(link.path), options: [])
         self.assertXattrs(orig, ["a": "A", "b": "B", "e": "E", "f": "F", "i": "I", "j": "J", "k": "K", "l": "L"])
         self.assertXattrs(
             link,
@@ -565,12 +631,13 @@ final class ExtendedAttributeTests: XCTestCase {
             options: .noTraverseLink
         )
         
-        try ExtendedAttribute.remove(keys: ["i", "j"], at: link, options: .noTraverseLink)
-        try ExtendedAttribute.remove(keys: ["k", "l"], at: link, options: [])
+        try ExtendedAttribute.remove(keys: ["i", "j"], atPath: link.path, options: .noTraverseLink)
+        try ExtendedAttribute.remove(keys: ["k", "l"], atPath: link.path, options: [])
         self.assertXattrs(orig, ["a": "A", "b": "B", "e": "E", "f": "F", "i": "I", "j": "J"])
         self.assertXattrs(link, ["c": "C", "d": "D", "g": "G", "h": "H", "k": "K", "l": "L"], options: .noTraverseLink)
     }
 
+#if Foundation
     func testFailsWithNonFileURLs() {
         let nonFileURL = URL(string: "https://www.charlessoft.com/index.html")!
 
@@ -594,4 +661,5 @@ final class ExtendedAttributeTests: XCTestCase {
             XCTAssertEqual(($0 as? CocoaError)?.code, .fileWriteUnsupportedScheme)
         }
     }
+#endif
 }

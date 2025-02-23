@@ -180,7 +180,11 @@ class UsersAndGroupsTests: XCTestCase {
         XCTAssertEqual(wheel.description, "wheel (GID 0)")
 
         XCTAssertThrowsError(_ = try UserOrGroup(uuid: UUID().uuid)) {
+#if Foundation
             XCTAssertEqual(($0 as? CocoaError)?.code, .fileReadNoSuchFile)
+#else
+            XCTAssertEqual($0 as? Errno, .noSuchFileOrDirectory)
+#endif
         }
     }
 }

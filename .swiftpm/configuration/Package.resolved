@@ -1,13 +1,22 @@
 {
-  "originHash" : "942c6191a288ede1b677901e8de011259af915438d7d7b7797d8cc5650d8890f",
+  "originHash" : "65938c2b26dcab06c27b76a299a28dcf6db3f94ccb5de451249cc95a265b33a3",
   "pins" : [
+    {
+      "identity" : "csdataprotocol",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/CharlesJS/CSDataProtocol",
+      "state" : {
+        "revision" : "d63a07c50ae31256baa67e6f266ab36c4b16309f",
+        "version" : "0.1.0"
+      }
+    },
     {
       "identity" : "cserrors",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/CharlesJS/CSErrors",
       "state" : {
-        "revision" : "776b7813f14e4618701b3c4f33c7ff27be53dfc0",
-        "version" : "2.0.0"
+        "revision" : "a29b22f124d059030f6e65caacf3e02a67ca6dfb",
+        "version" : "1.2.9"
       }
     },
     {
@@ -15,8 +24,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/CharlesJS/DataParser",
       "state" : {
-        "revision" : "cac5f86aa5662c7cd7a9ec24758924975fcc1f32",
-        "version" : "0.5.0"
+        "revision" : "cdcd2975b39d72da366759f1ee59d67a6b19a523",
+        "version" : "0.3.3"
       }
     },
     {

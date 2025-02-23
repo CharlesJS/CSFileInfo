@@ -11,12 +11,6 @@ import System
 import XCTest
 
 final class FileInfoFixtureTests: XCTestCase {
-    private static let bundle = Bundle(for: FileInfoFixtureTests.self)
-    private static let fixtureBundle: Bundle = {
-        let url = FileInfoFixtureTests.bundle.url(forResource: "CSFileInfo_CSFileInfoTests", withExtension: "bundle")!
-        return Bundle(url: url)!
-    }()
-
     private struct ImageFixture: Sendable {
         struct Info: Codable, Sendable {
             struct File: Codable, Sendable {
@@ -43,7 +37,7 @@ final class FileInfoFixtureTests: XCTestCase {
     override func setUp() async throws {
         try await super.setUp()
 
-        let bundle = FileInfoFixtureTests.fixtureBundle
+        let bundle = Bundle.module
         guard let infoURL = bundle.url(forResource: "images", withExtension: "plist", subdirectory: "fixtures/images") else {
             throw CocoaError(.fileNoSuchFile)
         }
@@ -160,13 +154,11 @@ final class FileInfoFixtureTests: XCTestCase {
     }
 
     private func testFixture(name: String, keys: FileInfo.Keys, closure: (FileInfo) throws -> Void) throws {
-        let bundle = Self.fixtureBundle
-
-        guard let dataURL = bundle.url(forResource: name, withExtension: "", subdirectory: "fixtures/files") else {
+        guard let dataURL = Bundle.module.url(forResource: name, withExtension: "", subdirectory: "fixtures/files") else {
             throw Errno.invalidArgument
         }
 
-        if let metadataURL = bundle.url(forResource: name, withExtension: "", subdirectory: "fixtures/metadata") {
+        if let metadataURL = Bundle.module.url(forResource: name, withExtension: "", subdirectory: "fixtures/metadata") {
             let url = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
             defer { _ = try? FileManager.default.removeItem(at: url) }
 

@@ -6,7 +6,6 @@
 //  Copyright © 2012-2023 Charles Srstka. All rights reserved.
 //
 
-import CSDataProtocol
 import CSErrors
 import DataParser
 import System
@@ -15,6 +14,14 @@ import System
 import Darwin
 #else
 import Glibc
+#endif
+
+#if Foundation
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
+import Foundation
+#endif
 #endif
 
 public struct FileInfo: Sendable {
@@ -36,6 +43,36 @@ public struct FileInfo: Sendable {
     public let cloneID: UInt64?
     public let parentID: UInt64?
     public var script: text_encoding_t?
+
+#if Foundation
+    public var creationDate: Date? {
+        get { self.creationTime.map { Date(timespec: $0) } }
+        set { self.creationTime = newValue?.timespec }
+    }
+
+    public var modificationDate: Date? {
+        get { self.modificationTime.map { Date(timespec: $0) } }
+        set { self.modificationTime = newValue?.timespec }
+    }
+
+    public var attributeModificationDate: Date? { self.attributeModificationTime.map { Date(timespec: $0) } }
+
+    public var accessDate: Date? {
+        get { self.accessTime.map { Date(timespec: $0) } }
+        set { self.accessTime = newValue?.timespec }
+    }
+
+    public var backupDate: Date? {
+        get { self.backupTime.map { Date(timespec: $0) } }
+        set { self.backupTime = newValue?.timespec }
+    }
+
+    public var addedDate: Date? {
+        get { self.addedTime.map { Date(timespec: $0) } }
+        set { self.addedTime = newValue?.timespec }
+    }
+#endif
+
     public var creationTime: timespec?
     public var modificationTime: timespec?
     public internal(set) var attributeModificationTime: timespec?
@@ -409,7 +446,6 @@ public struct FileInfo: Sendable {
         self.volumeNativelySupportedKeys = volumeNativelySupportedKeys
         self.volumeAllowedKeys = volumeAllowedKeys
     }
-
     
     @available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, macCatalyst 14.0, *)
     public init(at path: FilePath, keys: Keys) throws {
@@ -450,6 +486,17 @@ public struct FileInfo: Sendable {
 
         try self.init(path: path, attrList: attrList, supports64BitObjectIDs: supports64BitObjectIDs)
     }
+
+#if Foundation
+    public init(at url: URL, keys: Keys) throws {
+        guard #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, macCatalyst 14.0, *), versionCheck(11) else {
+            try self.init(atPath: url.path, keys: keys)
+            return
+        }
+
+        try self.init(at: FilePath(url.path), keys: keys)
+    }
+#endif
 
     @available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, macCatalyst 14.0, *)
     public init(at fileDescriptor: FileDescriptor, keys: Keys) throws {
@@ -589,11 +636,11 @@ public struct FileInfo: Sendable {
             (group & attrgroup_t(tag) != 0) ? try readAttr(type) : nil
         }
 
-        func readData(group: attrgroup_t, tag: Int32, count: Int) throws -> (some DataProtocol)? {
+        func readData(group: attrgroup_t, tag: Int32, count: Int) throws -> (some Collection<UInt8>)? {
             (group & attrgroup_t(tag) != 0) ? try parser.readBytes(count: count) : nil
         }
 
-        func readVariableLengthData(group: attrgroup_t, tag: Int32) throws -> (some DataProtocol)? {
+        func readVariableLengthData(group: attrgroup_t, tag: Int32) throws -> (some Collection<UInt8>)? {
             var newParser = parser
 
             return try readAttr(group: group, tag: tag, type: attrreference.self).map {
@@ -781,6 +828,17 @@ public struct FileInfo: Sendable {
         try path.withPlatformString { try self.apply(path: path, cPath: $0) }
     }
 
+#if Foundation
+    public func apply(to url: URL) throws {
+        guard #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, macCatalyst 14.0, *), versionCheck(11) else {
+            try self.apply(toPath: url.path)
+            return
+        }
+
+        try self.apply(to: FilePath(url.path))
+    }
+#endif
+
     private func apply(path: String, cPath: UnsafePointer<CChar>) throws {
         var (attrlist: attrs, data: data, opts: opts) = try self.generateStructuresForWriting()
 
@@ -828,14 +886,14 @@ public struct FileInfo: Sendable {
             }
         }
 
-        func writeFixedLengthData(_ data: (some DataProtocol)?, group: inout attrgroup_t, tag: Int32) {
+        func writeFixedLengthData(_ data: (some Collection<UInt8>)?, group: inout attrgroup_t, tag: Int32) {
             if let data = data {
                 group |= attrgroup_t(tag)
                 attrData += data
             }
         }
 
-        func writeVariableLengthData(_ data: (some DataProtocol)?, group: inout attrgroup_t, tag: Int32) throws {
+        func writeVariableLengthData(_ data: (some Collection<UInt8>)?, group: inout attrgroup_t, tag: Int32) throws {
             if let data {
                 guard data.count <= UInt32.max, trailerData.count <= Int32.max else { throw errno(EINVAL) }
 
