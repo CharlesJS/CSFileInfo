@@ -5,7 +5,13 @@
 //  Created by Charles Srstka on 10/28/23.
 //
 
-import XCTest
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
+import Foundation
+#endif
+
+import Testing
 
 struct DiskImageHelper {
     static let shared = Self.init()
@@ -39,10 +45,10 @@ struct DiskImageHelper {
 
         try hdiutil.run()
 
-        let data = try XCTUnwrap(pipe.fileHandleForReading.readToEnd())
-        let dict = try XCTUnwrap(PropertyListSerialization.propertyList(from: data, format: nil) as? [String : Any])
+        let data = try #require(try pipe.fileHandleForReading.readToEnd())
+        let dict = try #require(PropertyListSerialization.propertyList(from: data, format: nil) as? [String : Any])
 
-        for eachEntity in try XCTUnwrap(dict["system-entities"] as? [[String : Any]]) {
+        for eachEntity in try #require(dict["system-entities"] as? [[String : Any]]) {
             if let mountPoint = eachEntity["mount-point"] as? String, let devEntry = eachEntity["dev-entry"] as? String {
                 return (mountPoint: URL(filePath: mountPoint), devEntry: devEntry)
             }

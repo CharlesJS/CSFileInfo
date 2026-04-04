@@ -6,9 +6,16 @@
 //
 
 @testable import CSFileInfo
-import XCTest
+import Testing
 
-final class FileInfoEquatableTests: XCTestCase {
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
+import Foundation
+#endif
+
+@Suite
+struct FileInfoEquatableTests {
     private let referenceInfo = FileInfo(
         filename: "foo",
         pathString: "bar",
@@ -103,19 +110,20 @@ final class FileInfoEquatableTests: XCTestCase {
         volumeAllowedKeys: .all
     )
 
+    @Test
     func testEquality() throws {
         func testChange<T>(_ keyPath: WritableKeyPath<FileInfo, T?>, to value: T) {
             var info = self.referenceInfo
-            XCTAssertEqual(info, self.referenceInfo)
+            #expect(info == self.referenceInfo)
 
             info[keyPath: keyPath] = nil as T?
-            XCTAssertNotEqual(info, self.referenceInfo)
+            #expect(info != self.referenceInfo)
 
             info[keyPath: keyPath] = self.referenceInfo[keyPath: keyPath]
-            XCTAssertEqual(info, self.referenceInfo)
+            #expect(info == self.referenceInfo)
 
             info[keyPath: keyPath] = value
-            XCTAssertNotEqual(info, self.referenceInfo)
+            #expect(info != self.referenceInfo)
         }
 
         func testNumericProperty<T: Numeric>(_ keyPath: WritableKeyPath<FileInfo, T?>) {
@@ -151,6 +159,7 @@ final class FileInfoEquatableTests: XCTestCase {
         testChange(\.extendedFlags, to: .init(rawValue: 54321))
     }
 
+    @Test
     func testEncodingAndDecoding() throws {
         let referenceJSON = """
         {
@@ -316,10 +325,9 @@ final class FileInfoEquatableTests: XCTestCase {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
 
-        XCTAssertEqual(try String(data: encoder.encode(self.referenceInfo), encoding: .utf8), referenceJSON)
-        XCTAssertEqual(
-            try JSONDecoder().decode(FileInfo.self, from: XCTUnwrap(referenceJSON.data(using: .utf8))),
-            self.referenceInfo
+        #expect(try String(data: encoder.encode(self.referenceInfo), encoding: .utf8) == referenceJSON)
+        #expect(
+            try JSONDecoder().decode(FileInfo.self, from: #require(referenceJSON.data(using: .utf8))) == self.referenceInfo
         )
     }
 }
