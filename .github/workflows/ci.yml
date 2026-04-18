@@ -18,6 +18,11 @@ jobs:
     steps:
     - uses: actions/checkout@v6
     - uses: SwiftyLab/setup-swift@latest
+    - name: Fetch apt packages
+      if: contains(fromJSON('["ubuntu-latest", "ubuntu-24.04-arm"]'), matrix.os)
+      run: |
+        sudo apt update
+        sudo apt-get install -y libacl1-dev uuid-dev
     - name: Determine traits flags
       id: traits
       run: |

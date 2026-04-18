@@ -5,6 +5,8 @@
 //  Created by Charles Srstka on 4/4/26.
 //
 
+#if canImport(Darwin)
+
 @testable import CSFileInfo
 import Testing
 
@@ -103,8 +105,9 @@ struct ImageFixtureTests {
             let fileInfo = try FileInfo(atPath: url.path, keys: keys)
             let expectedFileInfo = self.getExpectedInfo(file: eachFile, imageInfo: imageInfo)
 
-            let infoJSON = try JSONEncoder().encode(fileInfo)
-            let expectedJSON = try JSONEncoder().encode(expectedFileInfo)
+            let encoder = JSONEncoder()
+            let infoJSON = try encoder.encode(fileInfo)
+            let expectedJSON = try encoder.encode(expectedFileInfo)
 
             var infoDict = try #require(JSONSerialization.jsonObject(with: infoJSON) as? [String : AnyHashable])
             let expectedDict = try #require(JSONSerialization.jsonObject(with: expectedJSON) as? [String : AnyHashable])
@@ -155,7 +158,7 @@ struct ImageFixtureTests {
                     let thenFromGMT = TimeZone.current.secondsFromGMT(for: Date(timeIntervalSince1970: timeInterval))
                     let nowFromGMT = TimeZone.current.secondsFromGMT(for: Date())
 
-                    time.tv_sec += thenFromGMT + (thenFromGMT - nowFromGMT)
+                    time.tv_sec -= thenFromGMT + (thenFromGMT - nowFromGMT)
 
                     info[keyPath: eachKeyPath] = time
                 }
@@ -184,3 +187,5 @@ struct ImageFixtureTests {
         }.joined(separator: "\n")
     }
 }
+
+#endif

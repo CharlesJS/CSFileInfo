@@ -1,5 +1,5 @@
 //
-//  Types.swift
+//  Types_Darwin.swift
 //  CSFileInfo
 //
 //  Created by Charles Srstka on 11/5/17.
@@ -7,10 +7,6 @@
 
 #if canImport(Darwin)
 import Darwin
-#else
-import Glibc
-#endif
-
 extension FileInfo {
     public enum ObjectType: Codable, Equatable, Sendable {
         case noType
@@ -259,3 +255,4 @@ extension FileInfo {
         }
     }
 }
+#endif

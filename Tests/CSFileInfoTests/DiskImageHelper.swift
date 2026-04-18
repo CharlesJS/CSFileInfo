@@ -5,12 +5,15 @@
 //  Created by Charles Srstka on 10/28/23.
 //
 
+#if canImport(Darwin)
+
 #if canImport(FoundationEssentials)
 import FoundationEssentials
 #else
 import Foundation
 #endif
 
+import CShims
 import Testing
 
 struct DiskImageHelper {
@@ -67,3 +70,5 @@ struct DiskImageHelper {
         hdiutil.waitUntilExit()
     }
 }
+
+#endif

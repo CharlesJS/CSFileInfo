@@ -7,7 +7,7 @@
 
 import CSErrors
 @testable import CSFileInfo
-@testable import CSFileInfo_Membership
+import CShims
 import Testing
 
 #if canImport(FoundationEssentials)
@@ -26,13 +26,14 @@ private let osVersions = [10, 11, 12, 13, .max]
 
 @Suite
 struct FileInfoReadOnlyTests {
+#if canImport(Darwin)
     @Test(arguments: osVersions)
     func testOSVersions(version: Int) throws {
         try emulateOSVersion(version) {
+            try self.testVolumeAttributes()
             try self.testDependentKeys()
             try self.testOwnershipKeys()
             try self.testFlagSync()
-            try self.testVolumeAttributes()
             try self.testFinderInfo()
         }
     }
@@ -172,19 +173,21 @@ struct FileInfoReadOnlyTests {
 
     @Test
     func testVolumeAttributes() throws {
+        let rootPath = NSOpenStepRootDirectory()
+
         var infos = [
-            try FileInfo(at: FilePath(NSOpenStepRootDirectory()), keys: .allVolume.subtracting(.volumeDirectoryCount)),
-            try FileInfo(atPath: NSOpenStepRootDirectory(), keys: .allVolume.subtracting(.volumeDirectoryCount))
+            try FileInfo(at: FilePath(rootPath), keys: .allVolume.subtracting(.volumeDirectoryCount)),
+            try FileInfo(atPath: rootPath, keys: .allVolume.subtracting(.volumeDirectoryCount))
         ]
 
 #if Foundation
         infos.append(
-            try FileInfo(at: URL(filePath: NSOpenStepRootDirectory()), keys: .allVolume.subtracting(.volumeDirectoryCount))
+            try FileInfo(at: URL(filePath: rootPath), keys: .allVolume.subtracting(.volumeDirectoryCount))
         )
 #endif
 
         for info in infos {
-            #expect(info.volumeMountPoint == FilePath(NSOpenStepRootDirectory()))
+            #expect(info.volumeMountPoint == FilePath(rootPath))
         }
     }
 
@@ -226,19 +229,24 @@ struct FileInfoReadOnlyTests {
             #expect(finderInfo.extendedFinderFlags == [])
         }
     }
+#endif
 }
 
 @Suite(.serialized)
 struct FileInfoReadWriteTests {
-    @Test(arguments: osVersions)
+    @Test(.serialized, arguments: osVersions)
     func testOSVersions(version: Int) throws {
         try emulateOSVersion(version) {
-            try self.testWriteFinderInfo()
             try self.testWriteSecurityInfo()
             try self.testWriteVolumeName()
+
+#if canImport(Darwin)
+            try self.testWriteFinderInfo()
+#endif
         }
     }
 
+#if canImport(Darwin)
     @Test
     func testWriteFinderInfo() throws {
         var appliers: [(FileInfo, URL) throws -> Void] = [
@@ -306,9 +314,11 @@ struct FileInfoReadWriteTests {
             )
         }
     }
+#endif
 
     @Test
     func testWriteSecurityInfo() throws {
+#if canImport(Darwin)
         var appliers: [(FileInfo, URL) throws -> Void] = [
             { try $0.apply(to: FilePath($1.path)) },
             { try $0.apply(toPath: $1.path) }
@@ -340,10 +350,12 @@ struct FileInfoReadWriteTests {
             #expect(newInfo.permissionsMode == info.permissionsMode)
             #expect(newInfo.accessControlList == info.accessControlList)
         }
+#endif
     }
 
     @Test
     func testWriteVolumeName() throws {
+#if canImport(Darwin)
         let imageURL = FileManager.default.temporaryDirectory.appendingPathComponent(
             UUID().uuidString
         ).appendingPathExtension("dmg")
@@ -365,7 +377,7 @@ struct FileInfoReadWriteTests {
 
         for applier in appliers {
             let (mountPoint: mountPoint, devEntry: devEntry) = try dmgHelper.mountImage(url: imageURL, readOnly: false)
-            defer { _ = try? dmgHelper.unmountImage(devEntry: devEntry) }
+            defer { try? dmgHelper.unmountImage(devEntry: devEntry) }
 
             var info = try FileInfo(atPath: mountPoint.path, keys: .volumeName)
 
@@ -375,9 +387,8 @@ struct FileInfoReadWriteTests {
             let volUUID = try #require(mountPoint.resourceValues(forKeys: [.volumeUUIDStringKey]).volumeUUIDString)
 
             try applier(info, mountPoint)
-            let newMountPoint = mountPoint.deletingLastPathComponent().appending(path: newName)
 
-            for _ in 0..<30 where (try? mountPoint.checkResourceIsReachable()) ?? false {
+            for _ in 0..<30 where (try? mountPoint.checkResourceIsReachable()) == true {
                 sleep(1)
             }
 
@@ -387,9 +398,17 @@ struct FileInfoReadWriteTests {
                 }?.code == .fileReadNoSuchFile
             )
 
+            // Remount to force info to refresh
+            try dmgHelper.unmountImage(devEntry: devEntry)
+            let (newMountPoint, newDevEntry) = try dmgHelper.mountImage(url: imageURL, readOnly: false)
+            defer { try? dmgHelper.unmountImage(devEntry: newDevEntry) }
+
+            #expect(newMountPoint != mountPoint)
+
             let newResourceValues = try newMountPoint.resourceValues(forKeys: [.volumeNameKey, .volumeUUIDStringKey])
             #expect(newResourceValues.volumeUUIDString == volUUID)
             #expect(newResourceValues.volumeName == newName)
         }
+#endif
     }
 }

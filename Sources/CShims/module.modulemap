@@ -1,0 +1,4 @@
+module CShims {
+    umbrella header "cshims.h"
+    export *
+}

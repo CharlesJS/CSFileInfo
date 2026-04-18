@@ -510,4 +510,3 @@ extension FileInfo.FinderInfo: Equatable {
         lhs.typeSpecificData.isDirectory == rhs.typeSpecificData.isDirectory
     }
 }
-

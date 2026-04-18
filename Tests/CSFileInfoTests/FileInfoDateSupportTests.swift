@@ -25,6 +25,7 @@ struct FileInfoDateSupportTests {
 #if Foundation
     @Test
     func testDates() {
+#if canImport(Darwin)
         let dateProperties: [(WritableKeyPath<FileInfo, timespec?>, WritableKeyPath<FileInfo, Date?>)] = [
             (\.creationTime, \.creationDate),
             (\.modificationTime, \.modificationDate),
@@ -32,7 +33,14 @@ struct FileInfoDateSupportTests {
             (\.backupTime, \.backupDate),
             (\.addedTime, \.addedDate)
         ]
-        
+#else
+        let dateProperties: [(WritableKeyPath<FileInfo, timespec?>, WritableKeyPath<FileInfo, Date?>)] = [
+            (\.creationTime, \.creationDate),
+            (\.modificationTime, \.modificationDate),
+            (\.accessTime, \.accessDate)
+        ]
+#endif
+
         var info = FileInfo()
 
         for (timeProperty, dateProperty) in dateProperties {

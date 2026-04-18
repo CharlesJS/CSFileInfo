@@ -5,8 +5,11 @@
 //  Created by Charles Srstka on 10/28/23.
 //
 
+#if canImport(Darwin)
+
 import CSErrors
 @testable import CSFileInfo
+import CShims
 import Testing
 
 #if canImport(FoundationEssentials)
@@ -25,7 +28,9 @@ struct FileFixture: CustomTestStringConvertible, Sendable {
     let name: String
     let isDirectory: Bool
 
-    var keys: FileInfo.Keys { [.allCommon, self.isDirectory ? .allDirectory : .allFile] }
+    var keys: FileInfo.Keys {
+        [.allCommon, self.isDirectory ? .allDirectory : .allFile]
+    }
     var testDescription: String { self.name }
 
     func testFileInfo(closure: (FileInfo) throws -> Void) throws {
@@ -125,7 +130,7 @@ func testFixture(fixture: FileFixture) throws {
 
             #expect(acl.count == 2)
             #expect(acl[0].rule == .allow)
-            #expect(acl[0].owner == .user(.init(id: 501)))
+            #expect(acl[0].owner == .user(.init(id: 0xfffffffe)))
             #expect(acl[0].permissions == .readSecurity)
             #expect(acl[0].flags == .limitInheritance)
             #expect(acl[1].rule == .deny)
@@ -158,3 +163,5 @@ func testFixture(fixture: FileFixture) throws {
         }
     }
 }
+
+#endif

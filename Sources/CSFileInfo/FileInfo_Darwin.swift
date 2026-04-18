@@ -1,36 +1,28 @@
 //
-//  FileInfo.swift
+//  FileInfo_Darwin.swift
 //  CSFileInfo
 //
 //  Created by Charles Srstka on 2/28/12.
-//  Copyright © 2012-2023 Charles Srstka. All rights reserved.
+//  Copyright © 2012-2026 Charles Srstka. All rights reserved.
 //
 
+#if canImport(Darwin)
 import CSErrors
 import DataParser
-import System
-
-#if canImport(Darwin)
 import Darwin
-#else
-import Glibc
-#endif
-
-#if Foundation
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
-import Foundation
-#endif
-#endif
+import System
 
 public struct FileInfo: Sendable {
     public let filename: String?
     @available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, macCatalyst 14.0, *)
     public var path: FilePath? { self.pathString.map { FilePath($0) } }
     public let pathString: String?
-    public let mountRelativePath: String?
-    public let noFirmLinkPath: String?
+    @available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, macCatalyst 14.0, *)
+    public var mountRelativePath: FilePath? { self.mountRelativePathString.map { FilePath($0) } }
+    public let mountRelativePathString: String?
+    @available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, macCatalyst 14.0, *)
+    public var noFirmLinkPath: FilePath? { self.noFirmLinkPathString.map { FilePath($0) } }
+    public let noFirmLinkPathString: String?
     public let deviceID: dev_t?
     public let realDeviceID: dev_t?
     public let fileSystemID: fsid_t?
@@ -43,35 +35,6 @@ public struct FileInfo: Sendable {
     public let cloneID: UInt64?
     public let parentID: UInt64?
     public var script: text_encoding_t?
-
-#if Foundation
-    public var creationDate: Date? {
-        get { self.creationTime.map { Date(timespec: $0) } }
-        set { self.creationTime = newValue?.timespec }
-    }
-
-    public var modificationDate: Date? {
-        get { self.modificationTime.map { Date(timespec: $0) } }
-        set { self.modificationTime = newValue?.timespec }
-    }
-
-    public var attributeModificationDate: Date? { self.attributeModificationTime.map { Date(timespec: $0) } }
-
-    public var accessDate: Date? {
-        get { self.accessTime.map { Date(timespec: $0) } }
-        set { self.accessTime = newValue?.timespec }
-    }
-
-    public var backupDate: Date? {
-        get { self.backupTime.map { Date(timespec: $0) } }
-        set { self.backupTime = newValue?.timespec }
-    }
-
-    public var addedDate: Date? {
-        get { self.addedTime.map { Date(timespec: $0) } }
-        set { self.addedTime = newValue?.timespec }
-    }
-#endif
 
     public var creationTime: timespec?
     public var modificationTime: timespec?
@@ -135,8 +98,8 @@ public struct FileInfo: Sendable {
     public let fileLinkCount: UInt32?
     public let fileTotalLogicalSize: off_t?
     public let fileTotalPhysicalSize: off_t?
-    public let fileOptimalBlockSize: UInt32?
-    public let fileAllocationClumpSize: UInt32?
+    public let fileOptimalBlockSize: off_t?
+    public let fileAllocationClumpSize: off_t?
     public let fileDataForkLogicalSize: off_t?
     public let fileDataForkPhysicalSize: off_t?
     public let fileResourceForkLogicalSize: off_t?
@@ -155,16 +118,16 @@ public struct FileInfo: Sendable {
     public let volumeSpaceUsed: off_t?
     public let volumeMinAllocationSize: off_t?
     public let volumeAllocationClumpSize: off_t?
-    public let volumeOptimalBlockSize: UInt32?
-    public let volumeObjectCount: UInt32?
-    public let volumeFileCount: UInt32?
-    public let volumeDirectoryCount: UInt32?
-    public let volumeMaxObjectCount: UInt32?
+    public let volumeOptimalBlockSize: off_t?
+    public let volumeObjectCount: UInt?
+    public let volumeFileCount: UInt?
+    public let volumeDirectoryCount: UInt?
+    public let volumeMaxObjectCount: UInt?
     @available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, macCatalyst 14.0, *)
     public var volumeMountPoint: FilePath? { self.volumeMountPointPathString.map { FilePath($0) } }
     public let volumeMountPointPathString: String?
     public var volumeName: String?
-    public let volumeMountFlags: UInt32?
+    public let volumeMountFlags: UInt64?
     public let volumeMountedDevice: String?
     public let volumeEncodingsUsed: CUnsignedLongLong?
     public let volumeUUID: uuid_t?
@@ -201,175 +164,91 @@ public struct FileInfo: Sendable {
         }
     }
 
-    public init() {
-        self.init(
-            filename: nil,
-            pathString: nil,
-            mountRelativePath: nil,
-            noFirmLinkPath: nil,
-            deviceID: nil,
-            realDeviceID: nil,
-            fileSystemID: nil,
-            realFileSystemID: nil,
-            objectType: nil,
-            objectTag: nil,
-            linkID: nil,
-            persistentID: nil,
-            inode: nil,
-            cloneID: nil,
-            parentID: nil,
-            script: nil,
-            creationTime: nil,
-            modificationTime: nil,
-            attributeModificationTime: nil,
-            accessTime: nil,
-            backupTime: nil,
-            addedTime: nil,
-            finderInfo: nil,
-            ownerID: nil,
-            ownerUUID: nil,
-            groupOwnerID: nil,
-            groupOwnerUUID: nil,
-            permissionsMode: nil,
-            accessControlList: nil,
-            posixFlags: nil,
-            extendedFlags: nil,
-            generationCount: nil,
-            recursiveGenerationCount: nil,
-            documentID: nil,
-            userAccess: nil,
-            protectionFlags: nil,
-            privateSize: nil,
-            fileLinkCount: nil,
-            fileTotalLogicalSize: nil,
-            fileTotalPhysicalSize: nil,
-            fileOptimalBlockSize: nil,
-            fileAllocationClumpSize: nil,
-            fileDataForkLogicalSize: nil,
-            fileDataForkPhysicalSize: nil,
-            fileResourceForkLogicalSize: nil,
-            fileResourceForkPhysicalSize: nil,
-            fileDeviceType: nil,
-            directoryLinkCount: nil,
-            directoryEntryCount: nil,
-            directoryMountStatus: nil,
-            directoryAllocationSize: nil,
-            directoryOptimalBlockSize: nil,
-            directoryLogicalSize: nil,
-            volumeSignature: nil,
-            volumeSize: nil,
-            volumeFreeSpace: nil,
-            volumeAvailableSpace: nil,
-            volumeSpaceUsed: nil,
-            volumeMinAllocationSize: nil,
-            volumeAllocationClumpSize: nil,
-            volumeOptimalBlockSize: nil,
-            volumeObjectCount: nil,
-            volumeFileCount: nil,
-            volumeDirectoryCount: nil,
-            volumeMaxObjectCount: nil,
-            volumeMountPointPathString: nil,
-            volumeName: nil,
-            volumeMountFlags: nil,
-            volumeMountedDevice: nil,
-            volumeEncodingsUsed: nil,
-            volumeUUID: nil,
-            volumeFileSystemTypeName: nil,
-            volumeFileSystemSubtype: nil,
-            volumeQuotaSize: nil,
-            volumeReservedSize: nil,
-            volumeNativeCapabilities: nil,
-            volumeAllowedCapabilities: nil,
-            volumeNativelySupportedKeys: nil,
-            volumeAllowedKeys: nil
-        )
-    }
-
     internal init(
-        filename: String?,
-        pathString: String?,
-        mountRelativePath: String?,
-        noFirmLinkPath: String?,
-        deviceID: dev_t?,
-        realDeviceID: dev_t?,
-        fileSystemID: fsid_t?,
-        realFileSystemID: fsid_t?,
-        objectType: ObjectType?,
-        objectTag: ObjectTag?,
-        linkID: UInt64?,
-        persistentID: UInt64?,
-        inode: ino_t?,
-        cloneID: UInt64?,
-        parentID: UInt64?,
-        script: text_encoding_t?,
-        creationTime: timespec?,
-        modificationTime: timespec?,
-        attributeModificationTime: timespec?,
-        accessTime: timespec?,
-        backupTime: timespec?,
-        addedTime: timespec?,
-        finderInfo: FinderInfo?,
-        ownerID: uid_t?,
-        ownerUUID: uuid_t?,
-        groupOwnerID: gid_t?,
-        groupOwnerUUID: uuid_t?,
-        permissionsMode: mode_t?,
-        accessControlList: AccessControlList?,
-        posixFlags: POSIXFlags?,
-        extendedFlags: ExtendedFlags?,
-        generationCount: UInt32?,
-        recursiveGenerationCount: UInt64?,
-        documentID: UInt32?,
-        userAccess: UserAccess?,
-        protectionFlags: UInt32?,
-        privateSize: off_t?,
-        fileLinkCount: UInt32?,
-        fileTotalLogicalSize: off_t?,
-        fileTotalPhysicalSize: off_t?,
-        fileOptimalBlockSize: UInt32?,
-        fileAllocationClumpSize: UInt32?,
-        fileDataForkLogicalSize: off_t?,
-        fileDataForkPhysicalSize: off_t?,
-        fileResourceForkLogicalSize: off_t?,
-        fileResourceForkPhysicalSize: off_t?,
-        fileDeviceType: UInt32?,
-        directoryLinkCount: UInt32?,
-        directoryEntryCount: UInt32?,
-        directoryMountStatus: MountStatus?,
-        directoryAllocationSize: off_t?,
-        directoryOptimalBlockSize: UInt32?,
-        directoryLogicalSize: off_t?,
-        volumeSignature: UInt32?,
-        volumeSize: off_t?,
-        volumeFreeSpace: off_t?,
-        volumeAvailableSpace: off_t?,
-        volumeSpaceUsed: off_t?,
-        volumeMinAllocationSize: off_t?,
-        volumeAllocationClumpSize: off_t?,
-        volumeOptimalBlockSize: UInt32?,
-        volumeObjectCount: UInt32?,
-        volumeFileCount: UInt32?,
-        volumeDirectoryCount: UInt32?,
-        volumeMaxObjectCount: UInt32?,
-        volumeMountPointPathString: String?,
-        volumeName: String?,
-        volumeMountFlags: UInt32?,
-        volumeMountedDevice: String?,
-        volumeEncodingsUsed: CUnsignedLongLong?,
-        volumeUUID: uuid_t?,
-        volumeFileSystemTypeName: String?,
-        volumeFileSystemSubtype: UInt32?,
-        volumeQuotaSize: off_t?,
-        volumeReservedSize: off_t?,
-        volumeNativeCapabilities: VolumeCapabilities?,
-        volumeAllowedCapabilities: VolumeCapabilities?,
-        volumeNativelySupportedKeys: Keys?,
-        volumeAllowedKeys: Keys?
+        filename: String? = nil,
+        pathString: String? = nil,
+        mountRelativePathString: String? = nil,
+        noFirmLinkPathString: String? = nil,
+        deviceID: dev_t? = nil,
+        realDeviceID: dev_t? = nil,
+        fileSystemID: fsid_t? = nil,
+        realFileSystemID: fsid_t? = nil,
+        objectType: ObjectType? = nil,
+        objectTag: ObjectTag? = nil,
+        linkID: UInt64? = nil,
+        persistentID: UInt64? = nil,
+        inode: ino_t? = nil,
+        cloneID: UInt64? = nil,
+        parentID: UInt64? = nil,
+        creationTime: timespec? = nil,
+        modificationTime: timespec? = nil,
+        attributeModificationTime: timespec? = nil,
+        accessTime: timespec? = nil,
+        backupTime: timespec? = nil,
+        addedTime: timespec? = nil,
+        ownerID: uid_t? = nil,
+        groupOwnerID: gid_t? = nil,
+        permissionsMode: mode_t? = nil,
+        accessControlList: AccessControlList? = nil,
+        posixFlags: POSIXFlags? = nil,
+        extendedFlags: ExtendedFlags? = nil,
+        generationCount: UInt32? = nil,
+        recursiveGenerationCount: UInt64? = nil,
+        documentID: UInt32? = nil,
+        userAccess: UserAccess? = nil,
+        protectionFlags: UInt32? = nil,
+        privateSize: off_t? = nil,
+        fileLinkCount: UInt32? = nil,
+        fileTotalLogicalSize: off_t? = nil,
+        fileTotalPhysicalSize: off_t? = nil,
+        fileOptimalBlockSize: off_t? = nil,
+        fileAllocationClumpSize: off_t? = nil,
+        fileDataForkLogicalSize: off_t? = nil,
+        fileDataForkPhysicalSize: off_t? = nil,
+        fileResourceForkLogicalSize: off_t? = nil,
+        fileResourceForkPhysicalSize: off_t? = nil,
+        fileDeviceType: UInt32? = nil,
+        directoryLinkCount: UInt32? = nil,
+        directoryEntryCount: UInt32? = nil,
+        directoryMountStatus: MountStatus? = nil,
+        directoryAllocationSize: off_t? = nil,
+        directoryOptimalBlockSize: UInt32? = nil,
+        directoryLogicalSize: off_t? = nil,
+        volumeSignature: UInt32? = nil,
+        volumeSize: off_t? = nil,
+        volumeFreeSpace: off_t? = nil,
+        volumeAvailableSpace: off_t? = nil,
+        volumeSpaceUsed: off_t? = nil,
+        volumeMinAllocationSize: off_t? = nil,
+        volumeAllocationClumpSize: off_t? = nil,
+        volumeOptimalBlockSize: off_t? = nil,
+        volumeObjectCount: UInt? = nil,
+        volumeFileCount: UInt? = nil,
+        volumeDirectoryCount: UInt? = nil,
+        volumeMaxObjectCount: UInt? = nil,
+        volumeMountPointPathString: String? = nil,
+        volumeName: String? = nil,
+        volumeMountFlags: UInt64? = nil,
+        volumeMountedDevice: String? = nil,
+        volumeEncodingsUsed: CUnsignedLongLong? = nil,
+        script: text_encoding_t? = nil,
+        finderInfo: FinderInfo? = nil,
+        ownerUUID: uuid_t? = nil,
+        groupOwnerUUID: uuid_t? = nil,
+        volumeUUID: uuid_t? = nil,
+        volumeFileSystemTypeName: String? = nil,
+        volumeFileSystemSubtype: UInt32? = nil,
+        volumeQuotaSize: off_t? = nil,
+        volumeReservedSize: off_t? = nil,
+        volumeNativeCapabilities: VolumeCapabilities? = nil,
+        volumeAllowedCapabilities: VolumeCapabilities? = nil,
+        volumeNativelySupportedKeys: Keys? = nil,
+        volumeAllowedKeys: Keys? = nil
     ) {
         self.filename = filename
         self.pathString = pathString
-        self.mountRelativePath = mountRelativePath
-        self.noFirmLinkPath = noFirmLinkPath
+        self.mountRelativePathString = mountRelativePathString
+        self.noFirmLinkPathString = noFirmLinkPathString
         self.deviceID = deviceID
         self.realDeviceID = realDeviceID
         self.fileSystemID = fileSystemID
@@ -381,18 +260,14 @@ public struct FileInfo: Sendable {
         self.inode = inode
         self.cloneID = cloneID
         self.parentID = parentID
-        self.script = script
         self.creationTime = creationTime
         self.modificationTime = modificationTime
         self.attributeModificationTime = attributeModificationTime
         self.accessTime = accessTime
         self.backupTime = backupTime
         self.addedTime = addedTime
-        self._finderInfo = finderInfo
         self.ownerID = ownerID
-        self.ownerUUID = ownerUUID
         self.groupOwnerID = groupOwnerID
-        self.groupOwnerUUID = groupOwnerUUID
         self.permissionsMode = permissionsMode
         self.accessControlList = accessControlList
         self._posixFlags = posixFlags
@@ -436,6 +311,10 @@ public struct FileInfo: Sendable {
         self.volumeMountFlags = volumeMountFlags
         self.volumeMountedDevice = volumeMountedDevice
         self.volumeEncodingsUsed = volumeEncodingsUsed
+        self.script = script
+        self._finderInfo = finderInfo
+        self.ownerUUID = ownerUUID
+        self.groupOwnerUUID = groupOwnerUUID
         self.volumeUUID = volumeUUID
         self.volumeFileSystemTypeName = volumeFileSystemTypeName
         self.volumeFileSystemSubtype = volumeFileSystemSubtype
@@ -473,7 +352,7 @@ public struct FileInfo: Sendable {
     public init(atPath path: String, keys: Keys) throws {
         let attrList: ContiguousArray<UInt8>
         let supports64BitObjectIDs: Bool
-
+        
         if #available(macOS 12.0, iOS 15.0, watchOS 8.0, tvOS 15.0, macCatalyst 15.0, *), versionCheck(12) {
             (attrList, supports64BitObjectIDs) = try path.withPlatformString { cPath in
                 try Self.getAttrList(path: path, keys: keys) { getattrlist(cPath, $0, $1, $2, $3) }
@@ -483,20 +362,9 @@ public struct FileInfo: Sendable {
                 try Self.getAttrList(path: path, keys: keys) { getattrlist(cPath, $0, $1, $2, $3) }
             }
         }
-
+        
         try self.init(path: path, attrList: attrList, supports64BitObjectIDs: supports64BitObjectIDs)
     }
-
-#if Foundation
-    public init(at url: URL, keys: Keys) throws {
-        guard #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, macCatalyst 14.0, *), versionCheck(11) else {
-            try self.init(atPath: url.path, keys: keys)
-            return
-        }
-
-        try self.init(at: FilePath(url.path), keys: keys)
-    }
-#endif
 
     @available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, macCatalyst 14.0, *)
     public init(at fileDescriptor: FileDescriptor, keys: Keys) throws {
@@ -706,7 +574,7 @@ public struct FileInfo: Sendable {
             UserAccess(rawValue: $0)
         }
         self.accessControlList = try readVariableLengthData(group: attrs.commonattr, tag: ATTR_CMN_EXTENDED_SECURITY).map {
-            try AccessControlList(data: $0, nativeRepresentation: true, isDirectory: objectType == .directory)
+            try AccessControlList(data: $0, nativeRepresentation: true)
         }
         self.ownerUUID = try readAttr(group: attrs.commonattr, tag: ATTR_CMN_UUID, type: guid_t.self).map(\.g_guid)
         self.groupOwnerUUID = try readAttr(group: attrs.commonattr, tag: ATTR_CMN_GRPUUID, type: guid_t.self).map(\.g_guid)
@@ -724,14 +592,26 @@ public struct FileInfo: Sendable {
         self.volumeSpaceUsed = try readAttr(group: attrs.volattr, tag: ATTR_VOL_SPACEUSED, type: off_t.self)
         self.volumeMinAllocationSize = try readAttr(group: attrs.volattr, tag: ATTR_VOL_MINALLOCATION, type: off_t.self)
         self.volumeAllocationClumpSize = try readAttr(group: attrs.volattr, tag: ATTR_VOL_ALLOCATIONCLUMP, type: off_t.self)
-        self.volumeOptimalBlockSize = try readAttr(group: attrs.volattr, tag: ATTR_VOL_IOBLOCKSIZE, type: UInt32.self)
-        self.volumeObjectCount = try readAttr(group: attrs.volattr, tag: ATTR_VOL_OBJCOUNT, type: UInt32.self)
-        self.volumeFileCount = try readAttr(group: attrs.volattr, tag: ATTR_VOL_FILECOUNT, type: UInt32.self)
-        self.volumeDirectoryCount = try readAttr(group: attrs.volattr, tag: ATTR_VOL_DIRCOUNT, type: UInt32.self)
-        self.volumeMaxObjectCount = try readAttr(group: attrs.volattr, tag: ATTR_VOL_MAXOBJCOUNT, type: UInt32.self)
+        self.volumeOptimalBlockSize = try readAttr(group: attrs.volattr, tag: ATTR_VOL_IOBLOCKSIZE, type: UInt32.self).map {
+            off_t($0)
+        }
+        self.volumeObjectCount = try readAttr(group: attrs.volattr, tag: ATTR_VOL_OBJCOUNT, type: UInt32.self).map {
+            UInt($0)
+        }
+        self.volumeFileCount = try readAttr(group: attrs.volattr, tag: ATTR_VOL_FILECOUNT, type: UInt32.self).map {
+            UInt($0)
+        }
+        self.volumeDirectoryCount = try readAttr(group: attrs.volattr, tag: ATTR_VOL_DIRCOUNT, type: UInt32.self).map {
+            UInt($0)
+        }
+        self.volumeMaxObjectCount = try readAttr(group: attrs.volattr, tag: ATTR_VOL_MAXOBJCOUNT, type: UInt32.self).map {
+            UInt($0)
+        }
         self.volumeMountPointPathString = try readString(group: attrs.volattr, tag: ATTR_VOL_MOUNTPOINT)
         self.volumeName = try readString(group: attrs.volattr, tag: ATTR_VOL_NAME)
-        self.volumeMountFlags = try readAttr(group: attrs.volattr, tag: ATTR_VOL_MOUNTFLAGS, type: UInt32.self)
+        self.volumeMountFlags = try readAttr(group: attrs.volattr, tag: ATTR_VOL_MOUNTFLAGS, type: UInt32.self).map {
+            UInt64($0)
+        }
         self.volumeMountedDevice = try readString(group: attrs.volattr, tag: ATTR_VOL_MOUNTEDDEVICE)
         self.volumeEncodingsUsed = try readAttr(
             group: attrs.volattr,
@@ -771,8 +651,12 @@ public struct FileInfo: Sendable {
         self.fileLinkCount = try readAttr(group: attrs.fileattr, tag: ATTR_FILE_LINKCOUNT, type: UInt32.self)
         self.fileTotalLogicalSize = try readAttr(group: attrs.fileattr, tag: ATTR_FILE_TOTALSIZE, type: off_t.self)
         self.fileTotalPhysicalSize = try readAttr(group: attrs.fileattr, tag: ATTR_FILE_ALLOCSIZE, type: off_t.self)
-        self.fileOptimalBlockSize = try readAttr(group: attrs.fileattr, tag: ATTR_FILE_IOBLOCKSIZE, type: UInt32.self)
-        self.fileAllocationClumpSize = try readAttr(group: attrs.fileattr, tag: ATTR_FILE_CLUMPSIZE, type: UInt32.self)
+        self.fileOptimalBlockSize = try readAttr(group: attrs.fileattr, tag: ATTR_FILE_IOBLOCKSIZE, type: UInt32.self).map {
+            off_t($0)
+        }
+        self.fileAllocationClumpSize = try readAttr(group: attrs.fileattr, tag: ATTR_FILE_CLUMPSIZE, type: UInt32.self).map {
+            off_t($0)
+        }
         self.fileDeviceType = try readAttr(group: attrs.fileattr, tag: ATTR_FILE_DEVTYPE, type: UInt32.self)
         _ = try readAttr(group: attrs.fileattr, tag: ATTR_FILE_FORKCOUNT, type: UInt32.self)
         self.fileDataForkLogicalSize = try readAttr(group: attrs.fileattr, tag: ATTR_FILE_DATALENGTH, type: off_t.self)
@@ -783,10 +667,10 @@ public struct FileInfo: Sendable {
             tag: ATTR_FILE_RSRCALLOCSIZE,
             type: off_t.self
         )
-        self.mountRelativePath = try readString(group: attrs.forkattr, tag: ATTR_CMNEXT_RELPATH)
+        self.mountRelativePathString = try readString(group: attrs.forkattr, tag: ATTR_CMNEXT_RELPATH)
         self.privateSize = try readAttr(group: attrs.forkattr, tag: ATTR_CMNEXT_PRIVATESIZE, type: off_t.self)
         let linkID64 = try readAttr(group: attrs.forkattr, tag: ATTR_CMNEXT_LINKID, type: UInt64.self)
-        self.noFirmLinkPath = try readString(group: attrs.forkattr, tag: ATTR_CMNEXT_NOFIRMLINKPATH)
+        self.noFirmLinkPathString = try readString(group: attrs.forkattr, tag: ATTR_CMNEXT_NOFIRMLINKPATH)
         self.realDeviceID = try readAttr(group: attrs.forkattr, tag: ATTR_CMNEXT_REALDEVID, type: dev_t.self)
         self.realFileSystemID = try readAttr(group: attrs.forkattr, tag: ATTR_CMNEXT_REALFSID, type: fsid_t.self)
         self.cloneID = try readAttr(group: attrs.forkattr, tag: ATTR_CMNEXT_CLONEID, type: UInt64.self)
@@ -827,17 +711,6 @@ public struct FileInfo: Sendable {
 
         try path.withPlatformString { try self.apply(path: path, cPath: $0) }
     }
-
-#if Foundation
-    public func apply(to url: URL) throws {
-        guard #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, macCatalyst 14.0, *), versionCheck(11) else {
-            try self.apply(toPath: url.path)
-            return
-        }
-
-        try self.apply(to: FilePath(url.path))
-    }
-#endif
 
     private func apply(path: String, cPath: UnsafePointer<CChar>) throws {
         var (attrlist: attrs, data: data, opts: opts) = try self.generateStructuresForWriting()
@@ -959,3 +832,5 @@ public struct FileInfo: Sendable {
         return (attrlist: attrs, data: attrData + trailerData, opts: UInt32(FSOPT_NOFOLLOW))
     }
 }
+
+#endif

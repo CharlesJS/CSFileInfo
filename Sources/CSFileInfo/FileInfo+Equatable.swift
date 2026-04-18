@@ -17,15 +17,18 @@ extension FileInfo: Equatable {
             l?.tv_sec == r?.tv_sec && l?.tv_nsec == r?.tv_nsec
         }
 
+#if canImport(Darwin)
         func compareUUIDs(_ l: uuid_t?, _ r: uuid_t?) -> Bool {
-            guard var l, var r else { return (l != nil) == (r != nil) }
+            guard var l, var r else { return (l == nil) && (r == nil) }
             return uuid_compare(&l, &r) == 0
         }
+#endif
 
+#if canImport(Darwin)
         return rhs.filename == rhs.filename &&
         lhs.pathString == rhs.pathString &&
-        lhs.mountRelativePath == rhs.mountRelativePath &&
-        lhs.noFirmLinkPath == rhs.noFirmLinkPath &&
+        lhs.mountRelativePathString == rhs.mountRelativePathString &&
+        lhs.noFirmLinkPathString == rhs.noFirmLinkPathString &&
         lhs.deviceID == rhs.deviceID &&
         lhs.realDeviceID == rhs.realDeviceID &&
         fsidsEqual(lhs.fileSystemID, rhs.fileSystemID) &&
@@ -101,5 +104,53 @@ extension FileInfo: Equatable {
         lhs.volumeAllowedCapabilities == rhs.volumeAllowedCapabilities &&
         lhs.volumeNativelySupportedKeys == rhs.volumeNativelySupportedKeys &&
         lhs.volumeAllowedKeys == rhs.volumeAllowedKeys
+#else
+        return lhs.path == rhs.path &&
+        lhs.mountRelativePath == rhs.mountRelativePath &&
+        lhs.deviceID == rhs.deviceID &&
+        lhs.realDeviceID == rhs.realDeviceID &&
+        fsidsEqual(lhs.fileSystemID, rhs.fileSystemID) &&
+        lhs.objectType == rhs.objectType &&
+        lhs.objectTag == rhs.objectTag &&
+        lhs.inode == rhs.inode &&
+        compareTimes(lhs.creationTime, rhs.creationTime) &&
+        compareTimes(lhs.modificationTime, rhs.modificationTime) &&
+        compareTimes(lhs.attributeModificationTime, rhs.attributeModificationTime) &&
+        compareTimes(lhs.accessTime, rhs.accessTime) &&
+        lhs.ownerID == rhs.ownerID &&
+        lhs.ownerUUID == rhs.ownerUUID &&
+        lhs.groupOwnerID == rhs.groupOwnerID &&
+        lhs.groupOwnerUUID == rhs.groupOwnerUUID &&
+        lhs.permissionsMode == rhs.permissionsMode &&
+        lhs.accessControlList == rhs.accessControlList &&
+        lhs.posixFlags == rhs.posixFlags &&
+        lhs.extendedFlags == rhs.extendedFlags &&
+        lhs.fileLinkCount == rhs.fileLinkCount &&
+        lhs.fileOptimalBlockSize == rhs.fileOptimalBlockSize &&
+        lhs.fileAllocationClumpSize == rhs.fileAllocationClumpSize &&
+        lhs.fileDataForkLogicalSize == rhs.fileDataForkLogicalSize &&
+        lhs.fileDataForkPhysicalSize == rhs.fileDataForkPhysicalSize &&
+        lhs.fileDeviceType == rhs.fileDeviceType &&
+        lhs.directoryLinkCount == rhs.directoryLinkCount &&
+        lhs.directoryEntryCount == rhs.directoryEntryCount &&
+        lhs.directoryMountStatus == rhs.directoryMountStatus &&
+        lhs.volumeSize == rhs.volumeSize &&
+        lhs.volumeFreeSpace == rhs.volumeFreeSpace &&
+        lhs.volumeAvailableSpace == rhs.volumeAvailableSpace &&
+        lhs.volumeSpaceUsed == rhs.volumeSpaceUsed &&
+        lhs.volumeMinAllocationSize == rhs.volumeMinAllocationSize &&
+        lhs.volumeAllocationClumpSize == rhs.volumeAllocationClumpSize &&
+        lhs.volumeObjectCount == rhs.volumeObjectCount &&
+        lhs.volumeMaxObjectCount == rhs.volumeMaxObjectCount &&
+        lhs.volumeMountPoint == rhs.volumeMountPoint &&
+        lhs.volumeName == rhs.volumeName &&
+        lhs.volumeMountFlags == rhs.volumeMountFlags &&
+        lhs.volumeMountedDevice == rhs.volumeMountedDevice &&
+        lhs.volumeUUID == rhs.volumeUUID &&
+        lhs.volumeFileSystemTypeName == rhs.volumeFileSystemTypeName &&
+        lhs.volumeFileSystemSubtype == rhs.volumeFileSystemSubtype &&
+        lhs.volumeQuotaSize == rhs.volumeQuotaSize &&
+        lhs.volumeReservedSize == rhs.volumeReservedSize
+#endif
     }
 }

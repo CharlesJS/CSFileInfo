@@ -25,10 +25,19 @@ struct InternalTests {
         #expect("a".hfsTypeCode == 0x61202020)
     }
 
+#if canImport(Darwin)
     @Test
     func testFSIDEquality() {
         #expect(fsidsEqual(fsid_t(val: (1, 2)), fsid_t(val: (1, 2))))
         #expect(!fsidsEqual(fsid_t(val: (1, 2)), fsid_t(val: (2, 2))))
         #expect(!fsidsEqual(fsid_t(val: (1, 2)), fsid_t(val: (1, 1))))
     }
+#else
+    @Test
+    func testFSIDEquality() {
+        #expect(fsidsEqual(fsid_t(__val: (1, 2)), fsid_t(__val: (1, 2))))
+        #expect(!fsidsEqual(fsid_t(__val: (1, 2)), fsid_t(__val: (2, 2))))
+        #expect(!fsidsEqual(fsid_t(__val: (1, 2)), fsid_t(__val: (1, 1))))
+    }
+#endif
 }

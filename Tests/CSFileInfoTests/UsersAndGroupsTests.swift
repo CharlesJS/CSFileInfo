@@ -6,7 +6,14 @@
 //
 
 @testable import CSFileInfo
+import CShims
 import Testing
+
+#if canImport(Darwin)
+import Darwin
+#elseif canImport(Glibc)
+import Glibc
+#endif
 
 #if canImport(FoundationEssentials)
 import FoundationEssentials
@@ -23,6 +30,7 @@ import System
 @Suite
 struct UsersAndGroupsTests {
     private let meUID = getuid()
+#if canImport(Darwin)
     private let meUUID: UUID = {
         var uuid: uuid_t = (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 
@@ -66,6 +74,13 @@ struct UsersAndGroupsTests {
 
         return UUID(uuid: uuid)
     }()
+#else
+    private let meUUID: UUID = UUID()
+    private let rootUUID: UUID = UUID()
+    private let myGroupUUID: UUID = UUID()
+    private let wheelUUID: UUID = UUID()
+    private let myGroupName = String(cString: getgrgid(getgid())!.pointee.gr_name)
+#endif
 
     @Test(arguments: [10, 11, 12, 13, .max])
     func testOSVersion(version: Int) throws {
@@ -76,7 +91,9 @@ struct UsersAndGroupsTests {
             try self.testCurrentGroup()
             try self.testGroupByID()
             try self.testGroupByName()
+#if canImport(Darwin)
             try self.testLookupByUUID()
+#endif
         }
     }
 
@@ -85,11 +102,13 @@ struct UsersAndGroupsTests {
         let user = User.current
 
         #expect(user.id == getuid())
-        #expect(try user.name == NSUserName())
+        #expect(try user.name == ProcessInfo.processInfo.userName)
+#if canImport(Darwin)
         #expect(try UUID(uuid: user.uuid) == meUUID)
-        #expect(user.description == "\(NSUserName()) (UID \(getuid()))")
-        #expect(try user.homeDirectory == FilePath(NSHomeDirectory()))
-        #expect(try user.homeDirectoryStringPath == NSHomeDirectory())
+#endif
+        #expect(user.description == "\(ProcessInfo.processInfo.userName) (UID \(getuid()))")
+        #expect(try user.homeDirectory == FilePath(FileManager.default.homeDirectoryForCurrentUser.path))
+        #expect(try user.homeDirectoryStringPath == FileManager.default.homeDirectoryForCurrentUser.path)
     }
 
     @Test
@@ -98,38 +117,46 @@ struct UsersAndGroupsTests {
         let root = User(id: 0)
 
         #expect(me.id == getuid())
-        #expect(try me.name == NSUserName())
+        #expect(try me.name == ProcessInfo.processInfo.userName)
+#if canImport(Darwin)
         #expect(try UUID(uuid: me.uuid) == meUUID)
-        #expect(me.description == "\(NSUserName()) (UID \(getuid()))")
-        #expect(try me.homeDirectory == FilePath(NSHomeDirectory()))
-        #expect(try me.homeDirectoryStringPath == NSHomeDirectory())
+#endif
+        #expect(me.description == "\(ProcessInfo.processInfo.userName) (UID \(getuid()))")
+        #expect(try me.homeDirectory == FilePath(FileManager.default.homeDirectoryForCurrentUser.path))
+        #expect(try me.homeDirectoryStringPath == FileManager.default.homeDirectoryForCurrentUser.path)
 
         #expect(root.id == 0)
         #expect(try root.name == "root")
+#if canImport(Darwin)
         #expect(try UUID(uuid: root.uuid) == rootUUID)
+#endif
         #expect(root.description == "root (UID 0)")
-        #expect(try root.homeDirectory == FilePath(NSHomeDirectoryForUser("root")!))
-        #expect(try root.homeDirectoryStringPath == NSHomeDirectoryForUser("root"))
+        #expect(try root.homeDirectory == FilePath(FileManager.default.homeDirectory(forUser: "root")!.path))
+        #expect(try root.homeDirectoryStringPath == FileManager.default.homeDirectory(forUser: "root")!.path)
     }
 
     @Test
     func testUserByName() throws {
-        let me = try #require(try User(name: NSUserName()))
+        let me = try #require(try User(name: ProcessInfo.processInfo.userName))
         let root = try #require(try User(name: "root"))
 
         #expect(me.id == getuid())
-        #expect(try me.name == NSUserName())
+        #expect(try me.name == ProcessInfo.processInfo.userName)
+#if canImport(Darwin)
         #expect(try UUID(uuid: me.uuid) == meUUID)
-        #expect(me.description == "\(NSUserName()) (UID \(getuid()))")
-        #expect(try me.homeDirectory == FilePath(NSHomeDirectory()))
-        #expect(try me.homeDirectoryStringPath == NSHomeDirectory())
+#endif
+        #expect(me.description == "\(ProcessInfo.processInfo.userName) (UID \(getuid()))")
+        #expect(try me.homeDirectory == FilePath(FileManager.default.homeDirectoryForCurrentUser.path))
+        #expect(try me.homeDirectoryStringPath == FileManager.default.homeDirectoryForCurrentUser.path)
 
         #expect(root.id == 0)
         #expect(try root.name == "root")
+#if canImport(Darwin)
         #expect(try UUID(uuid: root.uuid) == rootUUID)
+#endif
         #expect(root.description == "root (UID 0)")
-        #expect(try root.homeDirectory == FilePath(NSHomeDirectoryForUser("root")!))
-        #expect(try root.homeDirectoryStringPath == NSHomeDirectoryForUser("root"))
+        #expect(try root.homeDirectory == FilePath(FileManager.default.homeDirectory(forUser: "root")!.path))
+        #expect(try root.homeDirectoryStringPath == FileManager.default.homeDirectory(forUser: "root")!.path)
 
         #expect(try User(name: "fhqwhgads") == nil)
     }
@@ -140,7 +167,9 @@ struct UsersAndGroupsTests {
 
         #expect(group.id == getgid())
         #expect(try group.name == myGroupName)
+#if canImport(Darwin)
         #expect(try UUID(uuid: group.uuid) == myGroupUUID)
+#endif
         #expect(group.description == "\(myGroupName) (GID \(getgid()))")
     }
 
@@ -148,59 +177,81 @@ struct UsersAndGroupsTests {
     func testGroupByID() throws {
         let myGroup = Group(id: getgid())
         let wheel = Group(id: 0)
+        let wheelName = String(cString: getgrgid(0).pointee.gr_name!)
 
         #expect(myGroup.id == getgid())
         #expect(try myGroup.name == myGroupName)
+#if canImport(Darwin)
         #expect(try UUID(uuid: myGroup.uuid) == myGroupUUID)
+#endif
         #expect(myGroup.description == "\(myGroupName) (GID \(getgid()))")
 
         #expect(wheel.id == 0)
-        #expect(try wheel.name == "wheel")
+        #expect(try wheel.name == wheelName)
+        #expect(wheel.description == "\(wheelName) (GID 0)")
+#if canImport(Darwin)
         #expect(try UUID(uuid: wheel.uuid) == wheelUUID)
-        #expect(wheel.description == "wheel (GID 0)")
+#endif
     }
 
     @Test
     func testGroupByName() throws {
         let myGroup = try #require(try Group(name: myGroupName))
-        let wheel = try #require(try Group(name: "wheel"))
+        let wheelName = String(cString: getgrgid(0).pointee.gr_name!)
+        let wheel = try #require(try Group(name: wheelName))
 
         #expect(myGroup.id == getgid())
         #expect(try myGroup.name == myGroupName)
+#if canImport(Darwin)
         #expect(try UUID(uuid: myGroup.uuid) == myGroupUUID)
+#endif
         #expect(myGroup.description == "\(myGroupName) (GID \(getgid()))")
 
         #expect(wheel.id == 0)
-        #expect(try wheel.name == "wheel")
+        #expect(try wheel.name == wheelName)
+        #expect(wheel.description == "\(wheelName) (GID 0)")
+#if canImport(Darwin)
         #expect(try UUID(uuid: wheel.uuid) == wheelUUID)
-        #expect(wheel.description == "wheel (GID 0)")
+#endif
 
         #expect(try Group(name: "not_a_real_group_name") == nil)
     }
 
+#if canImport(Darwin)
     @Test
     func testLookupByUUID() throws {
         let me = try UserOrGroup(uuid: meUUID.uuid)
         let root = try UserOrGroup(uuid: rootUUID.uuid)
         let myGroup = try UserOrGroup(uuid: myGroupUUID.uuid)
         let wheel = try UserOrGroup(uuid: wheelUUID.uuid)
+        let unknownUUID = UUID()
+
+#if Foundation
+        #expect(#expect(throws: CocoaError.self) { try UserOrGroup(uuid: unknownUUID.uuid) }?.code == .fileReadNoSuchFile)
+#else
+        #expect(#expect(throws: Errno.self) { try UserOrGroup(uuid: unknownUUID.uuid) } == .noSuchFileOrDirectory)
+#endif
+        let unknown = try UserOrGroup(uuid: unknownUUID.uuid, allowUnknown: true)
 
         #expect(me == UserOrGroup.user(.current))
-        #expect(me.description == "\(NSUserName()) (UID \(getuid()))")
+        #expect(me.description == "\(ProcessInfo.processInfo.userName) (UID \(getuid()))")
 
         #expect(root == UserOrGroup.user(User(id: 0)))
+        #expect(root != UserOrGroup.group(Group(id: 0)))
         #expect(root.description == "root (UID 0)")
 
         #expect(myGroup == UserOrGroup.group(.current))
         #expect(myGroup.description == "\(myGroupName) (GID \(getgid()))")
 
         #expect(wheel == UserOrGroup.group(Group(id: 0)))
+        #expect(wheel != UserOrGroup.user(User(id: 0)))
         #expect(wheel.description == "wheel (GID 0)")
 
-#if Foundation
-        #expect(#expect(throws: CocoaError.self) { try UserOrGroup(uuid: UUID().uuid) }?.code == .fileReadNoSuchFile)
-#else
-        #expect(#expect(throws: Errno.self) { try UserOrGroup(uuid: UUID().uuid) } == .noSuchFileOrDirectory)
-#endif
+        #expect(unknown == UserOrGroup.unknown(unknownUUID.uuid))
+        #expect(unknown != UserOrGroup.user(.current))
+        #expect(unknown != UserOrGroup.group(.current))
+        #expect(unknown.description == "unknown: \(unknownUUID.uuidString)")
     }
+#endif
 }
+
