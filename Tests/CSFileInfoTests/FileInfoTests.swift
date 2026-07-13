@@ -7,59 +7,71 @@
 
 import CSErrors
 @testable import CSFileInfo
-import CSFileInfo_Membership
-import System
-import XCTest
+import CShims
+import Testing
 
-@available(macOS 13.0, *)
-class FileInfoTests: XCTestCase {
-    func testAll() throws {
-        for version in [10, 11, 12, 13] {
-            try emulateOSVersion(version) {
-                try self.testDependentKeys()
-                try self.testOwnershipKeys()
-                try self.testFlagSync()
-                try self.testVolumeAttributes()
-                try self.testFinderInfo()
-                try self.testWriteFinderInfo()
-                try self.testWriteSecurityInfo()
-                try self.testWriteVolumeName()
-            }
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
+import Foundation
+#endif
+
+#if canImport(SystemPackage)
+import SystemPackage
+#else
+import System
+#endif
+
+private let osVersions = [10, 11, 12, 13, .max]
+
+@Suite
+struct FileInfoReadOnlyTests {
+#if canImport(Darwin)
+    @Test(arguments: osVersions)
+    func testOSVersions(version: Int) throws {
+        try emulateOSVersion(version) {
+            try self.testVolumeAttributes()
+            try self.testDependentKeys()
+            try self.testOwnershipKeys()
+            try self.testFlagSync()
+            try self.testFinderInfo()
         }
     }
 
+    @Test
     func testDependentKeys() throws {
-        let tempURL = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        let tempURL = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
         defer { _ = try? FileManager.default.removeItem(at: tempURL) }
 
         try FileManager.default.createDirectory(at: tempURL, withIntermediateDirectories: true)
 
         var info = try FileInfo(atPath: tempURL.path, keys: [])
-        XCTAssertNil(info.objectType)
-        XCTAssertNil(info.directoryMountStatus)
-        XCTAssertNil(info.path)
-        XCTAssertNil(info.pathString)
+        #expect(info.objectType == nil)
+        #expect(info.directoryMountStatus == nil)
+        #expect(info.path == nil)
+        #expect(info.pathString == nil)
 
         info = try FileInfo(atPath: tempURL.path, keys: .finderInfo)
-        XCTAssertEqual(info.objectType, .directory)
-        XCTAssertEqual(info.directoryMountStatus, [])
-        XCTAssertNil(info.path)
-        XCTAssertNil(info.pathString)
+        #expect(info.objectType == .directory)
+        #expect(info.directoryMountStatus == [])
+        #expect(info.path == nil)
+        #expect(info.pathString == nil)
 
         info = try FileInfo(atPath: tempURL.path, keys: .fullPath)
-        XCTAssertEqual(info.objectType, .directory)
-        XCTAssertEqual(info.path.flatMap { URL(filePath: $0) }?.standardizedFileURL, tempURL.standardizedFileURL)
-        XCTAssertEqual(info.pathString.map { URL(filePath: $0) }?.standardizedFileURL, tempURL.standardizedFileURL)
+        #expect(info.objectType == .directory)
+        #expect(info.path.flatMap { URL(filePath: $0, directoryHint: .isDirectory) }?.standardizedFileURL == tempURL)
+        #expect(info.pathString.map { URL(filePath: $0, directoryHint: .isDirectory) }?.standardizedFileURL == tempURL)
 
         info = try FileInfo(atPath: NSOpenStepRootDirectory(), keys: [])
-        XCTAssertNil(info.objectType)
-        XCTAssertNil(info.directoryMountStatus)
+        #expect(info.objectType == nil)
+        #expect(info.directoryMountStatus == nil)
 
         info = try FileInfo(atPath: NSOpenStepRootDirectory(), keys: .finderInfo)
-        XCTAssertEqual(info.objectType, .directory)
-        XCTAssertEqual(info.directoryMountStatus, .isMountPoint)
+        #expect(info.objectType == .directory)
+        #expect(info.directoryMountStatus == .isMountPoint)
     }
 
+    @Test
     func testOwnershipKeys() throws {
         let tempURL = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
         defer { _ = try? FileManager.default.removeItem(at: tempURL) }
@@ -82,25 +94,23 @@ class FileInfoTests: XCTestCase {
         }
 
         var info = FileInfo()
-        XCTAssertNil(info.ownerID)
-        XCTAssertNil(info.groupOwnerID)
+        #expect(info.ownerID == nil)
+        #expect(info.groupOwnerID == nil)
 
         info.groupOwnerID = gids[1]
         info.groupOwnerUUID = groupUUIDs[1].uuid
         try info.apply(to: FilePath(tempURL.path))
-        XCTAssertEqual(try FileInfo(at: FilePath(tempURL.path), keys: .groupOwnerID).groupOwnerID, gids[1])
-        XCTAssertEqual(
-            try FileInfo(atPath: tempURL.path, keys: .groupOwnerUUID).groupOwnerUUID.map { UUID(uuid: $0) },
-            groupUUIDs[1]
+        #expect(try FileInfo(at: FilePath(tempURL.path), keys: .groupOwnerID).groupOwnerID == gids[1])
+        #expect(
+            try FileInfo(atPath: tempURL.path, keys: .groupOwnerUUID).groupOwnerUUID.map { UUID(uuid: $0) } == groupUUIDs[1]
         )
 
         info = FileInfo()
         info.groupOwnerUUID = groupUUIDs[2].uuid
         try info.apply(to: FilePath(tempURL.path))
-        XCTAssertEqual(try FileInfo(at: FilePath(tempURL.path), keys: .groupOwnerID).groupOwnerID, gids[1])
-        XCTAssertEqual(
-            try FileInfo(atPath: tempURL.path, keys: .groupOwnerUUID).groupOwnerUUID.map { UUID(uuid: $0) },
-            groupUUIDs[2]
+        #expect(try FileInfo(at: FilePath(tempURL.path), keys: .groupOwnerID).groupOwnerID == gids[1])
+        #expect(
+            try FileInfo(atPath: tempURL.path, keys: .groupOwnerUUID).groupOwnerUUID.map { UUID(uuid: $0) } == groupUUIDs[2]
         )
 
         try FileManager.default.removeItem(at: tempURL)
@@ -112,73 +122,76 @@ class FileInfoTests: XCTestCase {
         info.groupOwnerID = gids[1]
         info.groupOwnerUUID = groupUUIDs[1].uuid
         try info.apply(to: FileDescriptor(rawValue: handle.fileDescriptor))
-        XCTAssertEqual(try FileInfo(at: FilePath(tempURL.path), keys: .groupOwnerID).groupOwnerID, gids[1])
-        XCTAssertEqual(
-            try FileInfo(atPath: tempURL.path, keys: .groupOwnerUUID).groupOwnerUUID.map { UUID(uuid: $0) },
-            groupUUIDs[1]
+        #expect(try FileInfo(at: FilePath(tempURL.path), keys: .groupOwnerID).groupOwnerID == gids[1])
+        #expect(
+            try FileInfo(atPath: tempURL.path, keys: .groupOwnerUUID).groupOwnerUUID.map { UUID(uuid: $0) } == groupUUIDs[1]
         )
 
         info = FileInfo()
         info.groupOwnerUUID = groupUUIDs[2].uuid
         try info.apply(to: FileDescriptor(rawValue: handle.fileDescriptor))
-        XCTAssertEqual(try FileInfo(at: FilePath(tempURL.path), keys: .groupOwnerID).groupOwnerID, gids[1])
-        XCTAssertEqual(
-            try FileInfo(atPath: tempURL.path, keys: .groupOwnerUUID).groupOwnerUUID.map { UUID(uuid: $0) },
-            groupUUIDs[2]
+        #expect(try FileInfo(at: FilePath(tempURL.path), keys: .groupOwnerID).groupOwnerID == gids[1])
+        #expect(
+            try FileInfo(atPath: tempURL.path, keys: .groupOwnerUUID).groupOwnerUUID.map { UUID(uuid: $0) } == groupUUIDs[2]
         )
     }
 
+    @Test
     func testFlagSync() throws {
         var info = FileInfo()
         info.finderInfo = .init(isDirectory: false, finderFlags: .hasBeenInited)
-        XCTAssertEqual(info.finderInfo?.finderFlags, .hasBeenInited)
+        #expect(info.finderInfo?.finderFlags == .hasBeenInited)
 
         info.posixFlags = .isHidden
-        XCTAssertEqual(info.finderInfo?.finderFlags, [.hasBeenInited, .isInvisible])
+        #expect(info.finderInfo?.finderFlags == [.hasBeenInited, .isInvisible])
 
         info.posixFlags = [.isHidden, .isOpaque]
-        XCTAssertEqual(info.finderInfo?.finderFlags, [.hasBeenInited, .isInvisible])
+        #expect(info.finderInfo?.finderFlags == [.hasBeenInited, .isInvisible])
 
         info.posixFlags?.remove(.isHidden)
-        XCTAssertEqual(info.finderInfo?.finderFlags, .hasBeenInited)
+        #expect(info.finderInfo?.finderFlags == .hasBeenInited)
 
         info.posixFlags?.insert(.isHidden)
-        XCTAssertEqual(info.finderInfo?.finderFlags, [.hasBeenInited, .isInvisible])
+        #expect(info.finderInfo?.finderFlags == [.hasBeenInited, .isInvisible])
 
         info = FileInfo()
         info.finderInfo = .init(isDirectory: false, finderFlags: [])
         info.posixFlags = .isAppendOnly
 
         info.finderInfo?.finderFlags = .isInvisible
-        XCTAssertEqual(info.posixFlags, [.isHidden, .isAppendOnly])
+        #expect(info.posixFlags == [.isHidden, .isAppendOnly])
 
         info.finderInfo?.finderFlags = [.isInvisible, .isAlias]
-        XCTAssertEqual(info.posixFlags, [.isHidden, .isAppendOnly])
+        #expect(info.posixFlags == [.isHidden, .isAppendOnly])
 
         info.finderInfo?.finderFlags.remove(.isInvisible)
-        XCTAssertEqual(info.posixFlags, .isAppendOnly)
+        #expect(info.posixFlags == .isAppendOnly)
 
         info.finderInfo?.finderFlags.insert(.isInvisible)
-        XCTAssertEqual(info.posixFlags, [.isHidden, .isAppendOnly])
+        #expect(info.posixFlags == [.isHidden, .isAppendOnly])
     }
 
+    @Test
     func testVolumeAttributes() throws {
+        let rootPath = NSOpenStepRootDirectory()
+
         var infos = [
-            try FileInfo(at: FilePath(NSOpenStepRootDirectory()), keys: .allVolume.subtracting(.volumeDirectoryCount)),
-            try FileInfo(atPath: NSOpenStepRootDirectory(), keys: .allVolume.subtracting(.volumeDirectoryCount))
+            try FileInfo(at: FilePath(rootPath), keys: .allVolume.subtracting(.volumeDirectoryCount)),
+            try FileInfo(atPath: rootPath, keys: .allVolume.subtracting(.volumeDirectoryCount))
         ]
 
 #if Foundation
         infos.append(
-            try FileInfo(at: URL(filePath: NSOpenStepRootDirectory()), keys: .allVolume.subtracting(.volumeDirectoryCount))
+            try FileInfo(at: URL(filePath: rootPath), keys: .allVolume.subtracting(.volumeDirectoryCount))
         )
 #endif
 
         for info in infos {
-            XCTAssertEqual(info.volumeMountPoint, FilePath(NSOpenStepRootDirectory()))
+            #expect(info.volumeMountPoint == FilePath(rootPath))
         }
     }
 
+    @Test
     func testFinderInfo() throws {
         let tempURL = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
         defer { _ = try? FileManager.default.removeItem(at: tempURL) }
@@ -206,17 +219,35 @@ class FileInfoTests: XCTestCase {
 #endif
 
         for eachInfo in infos {
-            let finderInfo = try XCTUnwrap(eachInfo.finderInfo)
+            let finderInfo = try #require(eachInfo.finderInfo)
 
-            XCTAssertEqual(Data(finderInfo.data), rawFinderInfo)
-            XCTAssertEqual(finderInfo.type, "APPL")
-            XCTAssertEqual(finderInfo.creator, "ttxt")
-            XCTAssertTrue(finderInfo.finderFlags.contains(.hasBundle))
-            XCTAssertFalse(finderInfo.finderFlags.contains(.hasNoINITs))
-            XCTAssertEqual(finderInfo.extendedFinderFlags, [])
+            #expect(Data(finderInfo.data) == rawFinderInfo)
+            #expect(finderInfo.type == "APPL")
+            #expect(finderInfo.creator == "ttxt")
+            #expect(finderInfo.finderFlags.contains(.hasBundle) == true)
+            #expect(finderInfo.finderFlags.contains(.hasNoINITs) == false)
+            #expect(finderInfo.extendedFinderFlags == [])
+        }
+    }
+#endif
+}
+
+@Suite(.serialized)
+struct FileInfoReadWriteTests {
+    @Test(.serialized, arguments: osVersions)
+    func testOSVersions(version: Int) throws {
+        try emulateOSVersion(version) {
+            try self.testWriteSecurityInfo()
+            try self.testWriteVolumeName()
+
+#if canImport(Darwin)
+            try self.testWriteFinderInfo()
+#endif
         }
     }
 
+#if canImport(Darwin)
+    @Test
     func testWriteFinderInfo() throws {
         var appliers: [(FileInfo, URL) throws -> Void] = [
             { try $0.apply(to: FilePath($1.path)) },
@@ -242,14 +273,13 @@ class FileInfoTests: XCTestCase {
             defer { _ = try? FileManager.default.removeItem(at: tempFile) }
 
             var fileInfo = try FileInfo(atPath: tempFile.path, keys: .finderInfo)
-            XCTAssertNil(fileInfo.finderInfo)
+            #expect(fileInfo.finderInfo == nil)
 
             fileInfo.finderInfo = fileFinderInfo
             try applier(fileInfo, tempFile)
 
-            XCTAssertEqual(
-                try Data(XCTUnwrap(FileInfo(atPath: tempFile.path, keys: .finderInfo).finderInfo).data),
-                Data([
+            #expect(
+                try Data(#require(FileInfo(atPath: tempFile.path, keys: .finderInfo).finderInfo).data) == Data([
                     0x61, 0x62, 0x63, 0x64, 0x57, 0x58, 0x59, 0x5a, 0x04, 0x1c, 0x30, 0x39, 0x5b, 0xa0, 0x00, 0x00,
                     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x12, 0x34, 0x56, 0x78
                 ])
@@ -271,22 +301,24 @@ class FileInfoTests: XCTestCase {
 
             try FileManager.default.createDirectory(at: tempFolder, withIntermediateDirectories: true)
             var folderInfo = try FileInfo(atPath: tempFolder.path, keys: .finderInfo)
-            XCTAssertNil(folderInfo.finderInfo)
+            #expect(folderInfo.finderInfo == nil)
 
             folderInfo.finderInfo = folderFinderInfo
             try applier(folderInfo, tempFolder)
 
-            XCTAssertEqual(
-                try Data(XCTUnwrap(FileInfo(atPath: tempFolder.path, keys: .finderInfo).finderInfo).data),
-                Data([
+            #expect(
+                try Data(#require(FileInfo(atPath: tempFolder.path, keys: .finderInfo).finderInfo).data) == Data([
                     0x2b, 0xd7, 0x30, 0x2e, 0x34, 0x85, 0x38, 0xdc, 0x60, 0x0e, 0xcf, 0xc7, 0xa4, 0x60, 0x00, 0x00,
                     0x33, 0xbb, 0x5f, 0x22, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0xab, 0xcd, 0xef, 0x01
                 ])
             )
         }
     }
+#endif
 
+    @Test
     func testWriteSecurityInfo() throws {
+#if canImport(Darwin)
         var appliers: [(FileInfo, URL) throws -> Void] = [
             { try $0.apply(to: FilePath($1.path)) },
             { try $0.apply(toPath: $1.path) }
@@ -315,12 +347,15 @@ class FileInfoTests: XCTestCase {
             try applier(info, tempFile)
 
             let newInfo = try FileInfo(atPath: tempFile.path, keys: [.accessControlList, .permissionsMode])
-            XCTAssertEqual(newInfo.permissionsMode, info.permissionsMode)
-            XCTAssertEqual(newInfo.accessControlList, info.accessControlList)
+            #expect(newInfo.permissionsMode == info.permissionsMode)
+            #expect(newInfo.accessControlList == info.accessControlList)
         }
+#endif
     }
 
+    @Test
     func testWriteVolumeName() throws {
+#if canImport(Darwin)
         let imageURL = FileManager.default.temporaryDirectory.appendingPathComponent(
             UUID().uuidString
         ).appendingPathExtension("dmg")
@@ -342,29 +377,38 @@ class FileInfoTests: XCTestCase {
 
         for applier in appliers {
             let (mountPoint: mountPoint, devEntry: devEntry) = try dmgHelper.mountImage(url: imageURL, readOnly: false)
-            defer { _ = try? dmgHelper.unmountImage(devEntry: devEntry) }
+            defer { try? dmgHelper.unmountImage(devEntry: devEntry) }
 
             var info = try FileInfo(atPath: mountPoint.path, keys: .volumeName)
 
             let newName = UUID().uuidString
             info.volumeName = newName
 
-            let volUUID = try XCTUnwrap(mountPoint.resourceValues(forKeys: [.volumeUUIDStringKey]).volumeUUIDString)
+            let volUUID = try #require(mountPoint.resourceValues(forKeys: [.volumeUUIDStringKey]).volumeUUIDString)
 
             try applier(info, mountPoint)
-            let newMountPoint = mountPoint.deletingLastPathComponent().appending(path: newName)
 
-            for _ in 0..<30 where (try? mountPoint.checkResourceIsReachable()) ?? false {
+            for _ in 0..<30 where (try? mountPoint.checkResourceIsReachable()) == true {
                 sleep(1)
             }
 
-            XCTAssertThrowsError(try mountPoint.checkResourceIsReachable()) {
-                XCTAssertEqual(($0 as? CocoaError)?.code, .fileReadNoSuchFile)
-            }
+            #expect(
+                #expect(throws: CocoaError.self) {
+                    try mountPoint.checkResourceIsReachable()
+                }?.code == .fileReadNoSuchFile
+            )
+
+            // Remount to force info to refresh
+            try dmgHelper.unmountImage(devEntry: devEntry)
+            let (newMountPoint, newDevEntry) = try dmgHelper.mountImage(url: imageURL, readOnly: false)
+            defer { try? dmgHelper.unmountImage(devEntry: newDevEntry) }
+
+            #expect(newMountPoint != mountPoint)
 
             let newResourceValues = try newMountPoint.resourceValues(forKeys: [.volumeNameKey, .volumeUUIDStringKey])
-            XCTAssertEqual(newResourceValues.volumeUUIDString, volUUID)
-            XCTAssertEqual(newResourceValues.volumeName, newName)
+            #expect(newResourceValues.volumeUUIDString == volUUID)
+            #expect(newResourceValues.volumeName == newName)
         }
+#endif
     }
 }

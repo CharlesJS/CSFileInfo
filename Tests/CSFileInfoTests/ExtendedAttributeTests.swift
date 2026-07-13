@@ -7,208 +7,346 @@
 
 import CSErrors
 @testable import CSFileInfo
+import CShims
+import Testing
+
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
+import Foundation
+#endif
+
+#if canImport(SystemPackage)
+import SystemPackage
+#else
 import System
-import XCTest
+#endif
 
-final class ExtendedAttributeTests: XCTestCase {
-    let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+#if canImport(Darwin) || canImport(FreeBSD)
+private let attributeNotFoundError = Errno.attributeNotFound
+#else
+private let attributeNotFoundError = Errno.noData
+#endif
 
-    lazy var fileWithNoExtendedAttributes = { self.tempDir.appending(path: UUID().uuidString) }()
-    lazy var fileWithOneExtendedAttribute = { self.tempDir.appending(path: UUID().uuidString) }()
-    lazy var fileWithMultipleExtendedAttributes = { self.tempDir.appending(path: UUID().uuidString) }()
+#if canImport(Darwin)
+private let symlinkOpenFlag: CInt = O_SYMLINK
+#else
+private let symlinkOpenFlag: CInt = O_PATH | O_NOFOLLOW
+#endif
 
-    lazy var dirWithNoExtendedAttributes = { self.tempDir.appending(path: UUID().uuidString) }()
-    lazy var dirWithOneExtendedAttribute = { self.tempDir.appending(path: UUID().uuidString) }()
-    lazy var dirWithMultipleExtendedAttributes = { self.tempDir.appending(path: UUID().uuidString) }()
+#if canImport(Darwin)
+private func setxattr(_ path: String, _ name: String, _ value: String, _ size: Int, _ position: Int, _ options: Int) -> Int {
+    assert(position == 0)
 
-    lazy var linkWithNoExtendedAttributes = { self.tempDir.appending(path: UUID().uuidString) }()
-    lazy var linkWithOneExtendedAttribute = { self.tempDir.appending(path: UUID().uuidString) }()
-    lazy var linkWithMultipleExtendedAttributes = { self.tempDir.appending(path: UUID().uuidString) }()
-
-    override func setUp() {
-        try! FileManager.default.createDirectory(at: self.tempDir, withIntermediateDirectories: true)
-
-        try! Data().write(to: self.fileWithNoExtendedAttributes)
-
-        try! Data().write(to: self.fileWithOneExtendedAttribute)
-        try! callPOSIXFunction(expect: .zero) { setxattr(self.fileWithOneExtendedAttribute.path, "foo", "lish", 4, 0, 0) }
-
-        try! Data().write(to: self.fileWithMultipleExtendedAttributes)
-        try! callPOSIXFunction(expect: .zero) {
-            setxattr(self.fileWithMultipleExtendedAttributes.path, "bar", "barian", 6, 0, 0)
-        }
-        try! callPOSIXFunction(expect: .zero) {
-            setxattr(self.fileWithMultipleExtendedAttributes.path, "baz", "zerk", 4, 0, 0)
-        }
-
-        try! FileManager.default.createDirectory(at: self.dirWithNoExtendedAttributes, withIntermediateDirectories: true)
-
-        try! FileManager.default.createDirectory(at: self.dirWithOneExtendedAttribute, withIntermediateDirectories: true)
-        try! callPOSIXFunction(expect: .zero) { setxattr(self.dirWithOneExtendedAttribute.path, "foo", "lish", 4, 0, 0) }
-
-        try! FileManager.default.createDirectory(at: self.dirWithMultipleExtendedAttributes, withIntermediateDirectories: true)
-        try! callPOSIXFunction(expect: .zero) {
-            setxattr(self.dirWithMultipleExtendedAttributes.path, "bar", "barian", 6, 0, 0)
-        }
-        try! callPOSIXFunction(expect: .zero) {
-            setxattr(self.dirWithMultipleExtendedAttributes.path, "baz", "zerk", 4, 0, 0)
-        }
-
-        try! FileManager.default.createSymbolicLink(
-            at: self.linkWithNoExtendedAttributes,
-            withDestinationURL: self.fileWithMultipleExtendedAttributes
-        )
-
-        try! FileManager.default.createSymbolicLink(
-            at: self.linkWithOneExtendedAttribute,
-            withDestinationURL: self.fileWithNoExtendedAttributes
-        )
-
-        let linkWithOneXattrFd = open(linkWithOneExtendedAttribute.path, O_RDWR | O_SYMLINK)
-        defer { close(linkWithOneXattrFd) }
-        try! callPOSIXFunction(expect: .zero) {
-            fsetxattr(linkWithOneXattrFd, "foo", "lish", 4, 0, 0)
-        }
-
-        try! FileManager.default.createSymbolicLink(
-            at: self.linkWithMultipleExtendedAttributes,
-            withDestinationURL: self.dirWithNoExtendedAttributes
-        )
-
-        let linkWithMultipleXattrsFd = open(linkWithMultipleExtendedAttributes.path, O_RDWR | O_SYMLINK)
-        defer { close(linkWithMultipleXattrsFd) }
-        try! callPOSIXFunction(expect: .zero) {
-            fsetxattr(linkWithMultipleXattrsFd, "bar", "barian", 6, 0, 0)
-        }
-        try! callPOSIXFunction(expect: .zero) {
-            fsetxattr(linkWithMultipleXattrsFd, "baz", "zerk", 4, 0, 0)
-        }
-    }
-
-    override func tearDown() async throws {
-        try FileManager.default.removeItem(at: self.tempDir)
-    }
-
-    func testAll() throws {
-        for version in [10, 11, 12, 13] {
-            try emulateOSVersion(version) {
-                try self.testListExtendedAttributes()
-                try self.testReadExtendedAttributes()
-                try self.testWriteExtendedAttributes()
-                try self.testWriteExtendedAttributesToSymlink()
-                try self.testRemoveExtendedAttributes()
-                try self.testRemoveExtendedAttributesFromLink()
+    var result: Int32 = 0
+    path.withCString { pathPtr in
+        name.withCString { namePtr in
+            value.withCString { valuePtr in
+                result = Darwin.setxattr(pathPtr, namePtr, valuePtr, size_t(size), UInt32(position), Int32(options))
             }
         }
     }
+    return Int(result)
+}
+
+private func fsetxattr(_ fd: Int32, _ name: String, _ value: String, _ size: Int, _ position: Int, _ options: Int) -> Int {
+    assert(position == 0)
+
+    var result: Int32 = 0
+    name.withCString { namePtr in
+        value.withCString { valuePtr in
+            result = Darwin.fsetxattr(fd, namePtr, valuePtr, size_t(size), UInt32(position), Int32(options))
+        }
+    }
+    return Int(result)
+}
+#else
+private func setxattr(_ path: String, _ name: String, _ value: String, _ size: Int, _ position: Int, _ options: Int) -> Int {
+    assert(position == 0)
+
+    var result: Int32 = 0
+    path.withCString { pathPtr in
+        name.withCString { namePtr in
+            value.withCString { valuePtr in
+                result = CShims.setxattr(pathPtr, namePtr, valuePtr, size_t(size), Int32(options))
+            }
+        }
+    }
+    return Int(result)
+}
+
+private func fsetxattr(_ fd: Int32, _ name: String, _ value: String, _ size: Int, _ position: Int, _ options: Int) -> Int {
+    assert(position == 0)
+
+    var result: Int32 = 0
+    name.withCString { namePtr in
+        value.withCString { valuePtr in
+            result = CShims.fsetxattr(fd, namePtr, valuePtr, size_t(size), Int32(options))
+        }
+    }
+    return Int(result)
+}
+#endif
+
+private struct Scope: SuiteTrait, TestScoping {
+    @TaskLocal static var tempDir: URL! = nil
+
+    @TaskLocal static var fileWithNoExtendedAttributes: URL! = nil
+    @TaskLocal static var fileWithOneExtendedAttribute: URL! = nil
+    @TaskLocal static var fileWithMultipleExtendedAttributes: URL! = nil
+
+    @TaskLocal static var dirWithNoExtendedAttributes: URL! = nil
+    @TaskLocal static var dirWithOneExtendedAttribute: URL! = nil
+    @TaskLocal static var dirWithMultipleExtendedAttributes: URL! = nil
+
+    @TaskLocal static var linkWithNoExtendedAttributes: URL! = nil
+    @TaskLocal static var linkWithOneExtendedAttribute: URL! = nil
+    @TaskLocal static var linkWithMultipleExtendedAttributes: URL! = nil
+
+    func provideScope(for test: Test, testCase: Test.Case?, performing f: @Sendable () async throws -> Void) async throws {
+        let tempDir = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let fileNoXattr = tempDir.appending(path: UUID().uuidString)
+        try Data().write(to: fileNoXattr)
+
+        let file1Xattr = tempDir.appending(path: UUID().uuidString)
+        try Data().write(to: file1Xattr)
+        try callPOSIXFunction(expect: .zero) { setxattr(file1Xattr.path, "user.foo", "lish", 4, 0, 0) }
+
+        let fileMultiXattrs = tempDir.appending(path: UUID().uuidString)
+        try Data().write(to: fileMultiXattrs)
+        try callPOSIXFunction(expect: .zero) {
+            setxattr(fileMultiXattrs.path, "user.bar", "barian", 6, 0, 0)
+        }
+        try callPOSIXFunction(expect: .zero) {
+            setxattr(fileMultiXattrs.path, "user.baz", "zerk", 4, 0, 0)
+        }
+
+        let dirNoXattr = tempDir.appending(path: UUID().uuidString, directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: dirNoXattr, withIntermediateDirectories: true)
+
+        let dirOneXattr = tempDir.appending(path: UUID().uuidString, directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: dirOneXattr, withIntermediateDirectories: true)
+        try callPOSIXFunction(expect: .zero) { setxattr(dirOneXattr.path, "user.foo", "lish", 4, 0, 0) }
+
+        let dirMultiXattrs = tempDir.appending(path: UUID().uuidString, directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: dirMultiXattrs, withIntermediateDirectories: true)
+        try callPOSIXFunction(expect: .zero) {
+            setxattr(dirMultiXattrs.path, "user.bar", "barian", 6, 0, 0)
+        }
+        try callPOSIXFunction(expect: .zero) {
+            setxattr(dirMultiXattrs.path, "user.baz", "zerk", 4, 0, 0)
+        }
+
+#if canImport(Darwin) // Linux does not allow setting user.xattrs on symlinks
+        let linkNoXattr = tempDir.appending(path: UUID().uuidString)
+        try FileManager.default.createSymbolicLink(
+            at: linkNoXattr,
+            withDestinationURL: fileMultiXattrs
+        )
+
+        let linkOneXattr = tempDir.appending(path: UUID().uuidString)
+        try FileManager.default.createSymbolicLink(
+            at: linkOneXattr,
+            withDestinationURL: fileNoXattr
+        )
+
+        let linkWithOneXattrFd = CShims.open(linkOneXattr.path, O_RDWR | symlinkOpenFlag)
+        defer { close(linkWithOneXattrFd) }
+        try callPOSIXFunction(expect: .zero) {
+            fsetxattr(linkWithOneXattrFd, "user.foo", "lish", 4, 0, 0)
+        }
+
+        let linkMultiXattr = tempDir.appending(path: UUID().uuidString)
+        try FileManager.default.createSymbolicLink(
+            at: linkMultiXattr,
+            withDestinationURL: dirNoXattr
+        )
+
+        let linkWithMultipleXattrsFd = CShims.open(linkMultiXattr.path, O_RDWR | symlinkOpenFlag)
+        defer { close(linkWithMultipleXattrsFd) }
+        try callPOSIXFunction(expect: .zero) {
+            fsetxattr(linkWithMultipleXattrsFd, "user.bar", "barian", 6, 0, 0)
+        }
+        try callPOSIXFunction(expect: .zero) {
+            fsetxattr(linkWithMultipleXattrsFd, "user.baz", "zerk", 4, 0, 0)
+        }
+#endif
+
+        // Pyramid of Doooooooooooom (is there any way to set task local vars in bulk?)
+        try await Self.$tempDir.withValue(tempDir) {
+            try await Self.$fileWithNoExtendedAttributes.withValue(fileNoXattr) {
+                try await Self.$fileWithOneExtendedAttribute.withValue(file1Xattr) {
+                    try await Self.$fileWithMultipleExtendedAttributes.withValue(fileMultiXattrs) {
+                        try await Self.$dirWithNoExtendedAttributes.withValue(dirNoXattr) {
+                            try await Self.$dirWithOneExtendedAttribute.withValue(dirOneXattr) {
+                                try await Self.$dirWithMultipleExtendedAttributes.withValue(dirMultiXattrs) {
+#if canImport(Darwin)
+                                    try await Self.$linkWithNoExtendedAttributes.withValue(linkNoXattr) {
+                                        try await Self.$linkWithOneExtendedAttribute.withValue(linkOneXattr) {
+                                            try await Self.$linkWithMultipleExtendedAttributes.withValue(linkMultiXattr) {
+                                                try await f()
+                                            }
+                                        }
+                                    }
+#else
+                                    try await f()
+#endif
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Suite(Scope())
+struct ExtendedAttributeTests {
+#if canImport(Darwin) // Linux does not allow setting user.xattrs on symlinks
+    @Test(arguments: [10, 11, 12, 13, .max])
+    func testOSVersion(version: Int) throws {
+        try emulateOSVersion(version) {
+            try self.testListExtendedAttributes()
+            try self.testReadExtendedAttributes()
+            try self.testWriteExtendedAttributes()
+            try self.testRemoveExtendedAttributes()
+            try self.testWriteExtendedAttributesToSymlink()
+            try self.testRemoveExtendedAttributesFromLink()
+        }
+    }
+#endif
 
     private func makeXattr(key: String, value: String) -> ExtendedAttribute {
         ExtendedAttribute(key: key, data: value.utf8)
     }
 
-    private func assertXattrs(_ url: URL, _ dict: [String : String], options: ExtendedAttribute.ReadOptions = []) {
+    private func assertXattrs(_ url: URL, _ dict: [String : String], options: ExtendedAttribute.ReadOptions = []) throws {
         let xattrs = dict.map { self.makeXattr(key: $0.key, value: $0.value) }
 
 #if Foundation
-        XCTAssertEqual(try Set(ExtendedAttribute.list(at: url, options: options)), Set(xattrs))
+        #expect(try Set(ExtendedAttribute.list(at: url, options: options)) == Set(xattrs))
 #endif
-        XCTAssertEqual(try Set(ExtendedAttribute.list(at: FilePath(url.path), options: options)), Set(xattrs))
-        XCTAssertEqual(try Set(ExtendedAttribute.list(atPath: url.path, options: options)), Set(xattrs))
+        #expect(try Set(ExtendedAttribute.list(at: FilePath(url.path), options: options)) == Set(xattrs))
+        #expect(try Set(ExtendedAttribute.list(atPath: url.path, options: options)) == Set(xattrs))
     }
 
+    @Test
     func testListExtendedAttributes() throws {
-        func assertListEqual(_ url: URL, _ list: [String : String], options: ExtendedAttribute.ReadOptions = []) {
+        func assertListEqual(_ url: URL, _ list: [String : String], options: ExtendedAttribute.ReadOptions = []) throws {
             let attrs = Set(list.map { self.makeXattr(key: $0.key, value: $0.value) })
 
 #if Foundation
-            XCTAssertEqual(try Set(ExtendedAttribute.list(at: url, options: options)), attrs)
+            #expect(try Set(ExtendedAttribute.list(at: url, options: options)) == attrs)
 #endif
-            XCTAssertEqual(try Set(ExtendedAttribute.list(at: FilePath(url.path), options: options)), attrs)
-            XCTAssertEqual(try Set(ExtendedAttribute.list(atPath: url.path, options: options)), attrs)
+            #expect(try Set(ExtendedAttribute.list(at: FilePath(url.path), options: options)) == attrs)
+            #expect(try Set(ExtendedAttribute.list(atPath: url.path, options: options)) == attrs)
 
+            let fd: FileDescriptor
+#if canImport(Darwin)
             let fdOptions: FileDescriptor.OpenOptions = options.contains(.noTraverseLink) ? .symlink : []
-            let fd = try! FileDescriptor.open(url.path, .readOnly, options: fdOptions)
+            fd = try! FileDescriptor.open(url.path, .readOnly, options: fdOptions)
+#else
+            fd = try! FileDescriptor.open(url.path, .readOnly)
+#endif
             defer { _ = try? fd.close() }
 
-            XCTAssertEqual(try Set(ExtendedAttribute.list(at: fd, options: options)), attrs)
-            XCTAssertEqual(try Set(ExtendedAttribute.list(atFileDescriptor: fd.rawValue, options: options)), attrs)
+            #expect(try Set(ExtendedAttribute.list(at: fd, options: options)) == attrs)
+            #expect(try Set(ExtendedAttribute.list(atFileDescriptor: fd.rawValue, options: options)) == attrs)
         }
 
         let nonexistentFile = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
 #if Foundation
-        XCTAssertThrowsError(try ExtendedAttribute.list(at: nonexistentFile)) { XCTAssertTrue($0.isFileNotFoundError) }
+        #expect(#expect(throws: Error.self) { try ExtendedAttribute.list(at: nonexistentFile) }?.isFileNotFoundError == true)
+        #expect(#expect(throws: Error.self) { try ExtendedAttribute.list(at: nonexistentFile) }?.isFileNotFoundError == true)
 #endif
-        XCTAssertThrowsError(try ExtendedAttribute.list(at: FilePath(nonexistentFile.path))) {
-            XCTAssertTrue($0.isFileNotFoundError)
-        }
-        XCTAssertThrowsError(try ExtendedAttribute.list(atPath: nonexistentFile.path)) {
-            XCTAssertTrue($0.isFileNotFoundError)
-        }
-        assertListEqual(self.fileWithNoExtendedAttributes, [:])
-        assertListEqual(self.fileWithOneExtendedAttribute, ["foo" : "lish"])
-        assertListEqual(self.fileWithMultipleExtendedAttributes, ["bar" : "barian", "baz" : "zerk"])
+        #expect(
+            #expect(throws: Error.self) {
+                try ExtendedAttribute.list(at: FilePath(nonexistentFile.path))
+            }?.isFileNotFoundError == true
+        )
+        #expect(
+            #expect(throws: Error.self) {
+                try ExtendedAttribute.list(atPath: nonexistentFile.path)
+            }?.isFileNotFoundError == true
+        )
 
-        assertListEqual(self.dirWithNoExtendedAttributes, [:])
-        assertListEqual(self.dirWithOneExtendedAttribute, ["foo" : "lish"])
-        assertListEqual(self.dirWithMultipleExtendedAttributes, ["bar" : "barian", "baz" : "zerk"])
+        try assertListEqual(Scope.fileWithNoExtendedAttributes, [:])
+        try assertListEqual(Scope.fileWithOneExtendedAttribute, ["user.foo" : "lish"])
+        try assertListEqual(Scope.fileWithMultipleExtendedAttributes, ["user.bar" : "barian", "user.baz" : "zerk"])
 
-        assertListEqual(self.linkWithNoExtendedAttributes, ["bar" : "barian", "baz" : "zerk"], options: [])
-        assertListEqual(self.linkWithOneExtendedAttribute, [:], options: [])
-        assertListEqual(self.linkWithMultipleExtendedAttributes, [:], options: [])
+        try assertListEqual(Scope.dirWithNoExtendedAttributes, [:])
+        try assertListEqual(Scope.dirWithOneExtendedAttribute, ["user.foo" : "lish"])
+        try assertListEqual(Scope.dirWithMultipleExtendedAttributes, ["user.bar" : "barian", "user.baz" : "zerk"])
 
-        assertListEqual(self.linkWithNoExtendedAttributes, [:], options: .noTraverseLink)
-        assertListEqual(self.linkWithOneExtendedAttribute, ["foo" : "lish"], options: .noTraverseLink)
-        assertListEqual(
-            self.linkWithMultipleExtendedAttributes,
-            ["bar" : "barian", "baz" : "zerk"],
+#if canImport(Darwin) // Linux does not support user.xattrs on symlinks
+        try assertListEqual(Scope.linkWithNoExtendedAttributes, ["user.bar" : "barian", "user.baz" : "zerk"], options: [])
+        try assertListEqual(Scope.linkWithOneExtendedAttribute, [:], options: [])
+        try assertListEqual(Scope.linkWithMultipleExtendedAttributes, [:], options: [])
+
+        try assertListEqual(Scope.linkWithNoExtendedAttributes, [:], options: .noTraverseLink)
+        try assertListEqual(Scope.linkWithOneExtendedAttribute, ["user.foo" : "lish"], options: .noTraverseLink)
+        try assertListEqual(
+            Scope.linkWithMultipleExtendedAttributes,
+            ["user.bar" : "barian", "user.baz" : "zerk"],
             options: .noTraverseLink
         )
+#endif
     }
 
+    @Test
     func testReadExtendedAttributes() throws {
         func assertGetAttribute(url: URL, key: String, expectedAttribute: String, traverseLink: Bool = false) throws {
             let options: ExtendedAttribute.ReadOptions = traverseLink ? [] : [.noTraverseLink]
 
 #if Foundation
-            XCTAssertEqual(
-                try String(decoding: ExtendedAttribute(at: url, key: key, options: options).data, as: UTF8.self),
-                expectedAttribute
+            #expect(
+                try String(
+                    decoding: ExtendedAttribute(at: url, key: key, options: options).data,
+                    as: UTF8.self
+                ) == expectedAttribute
             )
 #endif
 
-            XCTAssertEqual(
+            #expect(
                 try String(
                     decoding: ExtendedAttribute(at: FilePath(url.path), key: key, options: options).data,
                     as: UTF8.self
-                ),
-                expectedAttribute
+                ) == expectedAttribute
             )
 
-            XCTAssertEqual(
-                try String(decoding: ExtendedAttribute(atPath: url.path, key: key, options: options).data, as: UTF8.self),
-                expectedAttribute
+            #expect(
+                try String(
+                    decoding: ExtendedAttribute(atPath: url.path, key: key, options: options).data,
+                    as: UTF8.self
+                ) == expectedAttribute
             )
 
+            #if canImport(Darwin)
             let openOptions: FileDescriptor.OpenOptions = options.contains(.noTraverseLink) ? .symlink : []
             let fd = try FileDescriptor.open(FilePath(url.path), .readOnly, options: openOptions)
+#else
+            let fd = try FileDescriptor.open(FilePath(url.path), .readOnly)
+#endif
             defer { _ = try? fd.close() }
 
             let fdOptions = options.subtracting(.noTraverseLink)
 
-            XCTAssertEqual(
+            #expect(
                 try String(
                     decoding: ExtendedAttribute(at: fd, key: key, options: fdOptions).data,
                     as: UTF8.self
-                ),
-                expectedAttribute
+                ) == expectedAttribute
             )
 
-            XCTAssertEqual(
+            #expect(
                 try String(
                     decoding: ExtendedAttribute(atFileDescriptor: fd.rawValue, key: key, options: fdOptions).data,
                     as: UTF8.self
-                ),
-                expectedAttribute
+                ) == expectedAttribute
             )
         }
 
@@ -216,221 +354,224 @@ final class ExtendedAttributeTests: XCTestCase {
             let options: ExtendedAttribute.ReadOptions = traverseLink ? [] : [.noTraverseLink]
 
 #if Foundation
-            XCTAssertThrowsError(try ExtendedAttribute(at: url, key: key, options: options)) {
-                XCTAssertEqual(($0 as NSError).domain, (error as NSError).domain)
-                XCTAssertEqual(($0 as NSError).code, (error as NSError).code)
-            }
+            #expect(#expect(throws: E.self) { try ExtendedAttribute(at: url, key: key, options: options) }?._code == error._code)
 #endif
 
-            XCTAssertThrowsError(try ExtendedAttribute(at: FilePath(url.path), key: key, options: options)) {
-                XCTAssertEqual(($0 as NSError).domain, (error as NSError).domain)
-                XCTAssertEqual(($0 as NSError).code, (error as NSError).code)
-            }
+            #expect(#expect(throws: E.self) {
+                try ExtendedAttribute(at: FilePath(url.path), key: key, options: options)
+            }?._code == error._code)
 
-            XCTAssertThrowsError(try ExtendedAttribute(atPath: url.path, key: key, options: options)) {
-                XCTAssertEqual(($0 as NSError).domain, (error as NSError).domain)
-                XCTAssertEqual(($0 as NSError).code, (error as NSError).code)
-            }
+            #expect(#expect(throws: E.self) {
+                try ExtendedAttribute(atPath: url.path, key: key, options: options)
+            }?._code == error._code)
         }
 
         let nonexistentFile = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
 #if Foundation
-        assertThrowsError(url: nonexistentFile, key: "foo", error: CocoaError(.fileReadNoSuchFile))
+        assertThrowsError(url: nonexistentFile, key: "user.foo", error: CocoaError(.fileReadNoSuchFile))
 #else
-        assertThrowsError(url: nonexistentFile, key: "foo", error: Errno.noSuchFileOrDirectory)
+        assertThrowsError(url: nonexistentFile, key: "user.foo", error: Errno.noSuchFileOrDirectory)
 #endif
 
-        assertThrowsError(url: self.fileWithNoExtendedAttributes, key: "foo", error: Errno.attributeNotFound)
+        assertThrowsError(url: Scope.fileWithNoExtendedAttributes, key: "user.foo", error: attributeNotFoundError)
 
-        try assertGetAttribute(url: self.fileWithOneExtendedAttribute, key: "foo", expectedAttribute: "lish")
-        assertThrowsError(url: self.fileWithOneExtendedAttribute, key: "bar", error: Errno.attributeNotFound)
+        try assertGetAttribute(url: Scope.fileWithOneExtendedAttribute, key: "user.foo", expectedAttribute: "lish")
+        assertThrowsError(url: Scope.fileWithOneExtendedAttribute, key: "user.bar", error: attributeNotFoundError)
 
-        try assertGetAttribute(url: self.fileWithMultipleExtendedAttributes, key: "bar", expectedAttribute: "barian")
-        try assertGetAttribute(url: self.fileWithMultipleExtendedAttributes, key: "baz", expectedAttribute: "zerk")
-        assertThrowsError(url: self.fileWithMultipleExtendedAttributes, key: "foo", error: Errno.attributeNotFound)
+        try assertGetAttribute(url: Scope.fileWithMultipleExtendedAttributes, key: "user.bar", expectedAttribute: "barian")
+        try assertGetAttribute(url: Scope.fileWithMultipleExtendedAttributes, key: "user.baz", expectedAttribute: "zerk")
+        assertThrowsError(url: Scope.fileWithMultipleExtendedAttributes, key: "user.foo", error: attributeNotFoundError)
 
-        assertThrowsError(url: self.dirWithNoExtendedAttributes, key: "foo", error: Errno.attributeNotFound)
+        assertThrowsError(url: Scope.dirWithNoExtendedAttributes, key: "user.foo", error: attributeNotFoundError)
 
-        try assertGetAttribute(url: self.dirWithOneExtendedAttribute, key: "foo", expectedAttribute: "lish")
-        assertThrowsError(url: self.dirWithOneExtendedAttribute, key: "bar", error: Errno.attributeNotFound)
+        try assertGetAttribute(url: Scope.dirWithOneExtendedAttribute, key: "user.foo", expectedAttribute: "lish")
+        assertThrowsError(url: Scope.dirWithOneExtendedAttribute, key: "user.bar", error: attributeNotFoundError)
 
-        try assertGetAttribute(url: self.dirWithMultipleExtendedAttributes, key: "bar", expectedAttribute: "barian")
-        try assertGetAttribute(url: self.dirWithMultipleExtendedAttributes, key: "baz", expectedAttribute: "zerk")
-        assertThrowsError(url: self.dirWithMultipleExtendedAttributes, key: "foo", error: Errno.attributeNotFound)
+        try assertGetAttribute(url: Scope.dirWithMultipleExtendedAttributes, key: "user.bar", expectedAttribute: "barian")
+        try assertGetAttribute(url: Scope.dirWithMultipleExtendedAttributes, key: "user.baz", expectedAttribute: "zerk")
+        assertThrowsError(url: Scope.dirWithMultipleExtendedAttributes, key: "user.foo", error: attributeNotFoundError)
 
+#if canImport(Darwin) // Linux does not allow user.xattrs on symlinks
         assertThrowsError(
-            url: self.linkWithNoExtendedAttributes,
-            key: "foo",
-            error: Errno.attributeNotFound,
+            url: Scope.linkWithNoExtendedAttributes,
+            key: "user.foo",
+            error: attributeNotFoundError,
             traverseLink: false
         )
 
         try assertGetAttribute(
-            url: self.linkWithOneExtendedAttribute,
-            key: "foo",
+            url: Scope.linkWithOneExtendedAttribute,
+            key: "user.foo",
             expectedAttribute: "lish",
             traverseLink: false
         )
         assertThrowsError(
-            url: self.linkWithOneExtendedAttribute,
-            key: "bar",
-            error: Errno.attributeNotFound,
+            url: Scope.linkWithOneExtendedAttribute,
+            key: "user.bar",
+            error: attributeNotFoundError,
             traverseLink: false
         )
 
         try assertGetAttribute(
-            url: self.linkWithMultipleExtendedAttributes,
-            key: "bar",
+            url: Scope.linkWithMultipleExtendedAttributes,
+            key: "user.bar",
             expectedAttribute: "barian",
             traverseLink: false
         )
         try assertGetAttribute(
-            url: self.linkWithMultipleExtendedAttributes,
-            key: "baz",
+            url: Scope.linkWithMultipleExtendedAttributes,
+            key: "user.baz",
             expectedAttribute: "zerk",
             traverseLink: false
         )
         assertThrowsError(
-            url: self.linkWithMultipleExtendedAttributes,
-            key: "foo",
-            error: Errno.attributeNotFound,
+            url: Scope.linkWithMultipleExtendedAttributes,
+            key: "user.foo",
+            error: attributeNotFoundError,
             traverseLink: false
         )
 
         try assertGetAttribute(
-            url: self.linkWithNoExtendedAttributes,
-            key: "bar",
+            url: Scope.linkWithNoExtendedAttributes,
+            key: "user.bar",
             expectedAttribute: "barian",
             traverseLink: true
         )
         try assertGetAttribute(
-            url: self.linkWithNoExtendedAttributes,
-            key: "baz",
+            url: Scope.linkWithNoExtendedAttributes,
+            key: "user.baz",
             expectedAttribute: "zerk",
             traverseLink: true
         )
         assertThrowsError(
-            url: self.linkWithNoExtendedAttributes,
-            key: "foo",
-            error: Errno.attributeNotFound,
+            url: Scope.linkWithNoExtendedAttributes,
+            key: "user.foo",
+            error: attributeNotFoundError,
             traverseLink: true
         )
 
         assertThrowsError(
-            url: self.linkWithOneExtendedAttribute,
-            key: "foo",
-            error: Errno.attributeNotFound,
+            url: Scope.linkWithOneExtendedAttribute,
+            key: "user.foo",
+            error: attributeNotFoundError,
             traverseLink: true
         )
         assertThrowsError(
-            url: self.linkWithOneExtendedAttribute,
-            key: "bar",
-            error: Errno.attributeNotFound,
+            url: Scope.linkWithOneExtendedAttribute,
+            key: "user.bar",
+            error: attributeNotFoundError,
             traverseLink: true
         )
 
         assertThrowsError(
-            url: self.linkWithMultipleExtendedAttributes,
-            key: "foo",
-            error: Errno.attributeNotFound,
+            url: Scope.linkWithMultipleExtendedAttributes,
+            key: "user.foo",
+            error: attributeNotFoundError,
             traverseLink: true
         )
         assertThrowsError(
-            url: self.linkWithMultipleExtendedAttributes,
-            key: "bar",
-            error: Errno.attributeNotFound,
+            url: Scope.linkWithMultipleExtendedAttributes,
+            key: "user.bar",
+            error: attributeNotFoundError,
             traverseLink: true
         )
+#endif
     }
 
+    @Test
     func testWriteExtendedAttributes() throws {
         let testFile = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
         try Data().write(to: testFile)
         defer { _ = try? FileManager.default.removeItem(at: testFile) }
 
-        self.assertXattrs(testFile, [:])
+        try self.assertXattrs(testFile, [:])
 
 #if Foundation
-        try self.makeXattr(key: "one", value: "uno").write(to: testFile)
+        try self.makeXattr(key: "user.one", value: "uno").write(to: testFile)
 #else
-        try self.makeXattr(key: "one", value: "uno").write(to: FilePath(testFile.path))
+        try self.makeXattr(key: "user.one", value: "uno").write(to: FilePath(testFile.path))
 #endif
-        self.assertXattrs(testFile, ["one": "uno"])
+        try self.assertXattrs(testFile, ["user.one": "uno"])
 
-        try self.makeXattr(key: "two", value: "dos").write(to: FilePath(testFile.path))
-        self.assertXattrs(testFile, ["one": "uno", "two": "dos"])
+        try self.makeXattr(key: "user.two", value: "dos").write(to: FilePath(testFile.path))
+        try self.assertXattrs(testFile, ["user.one": "uno", "user.two": "dos"])
 
-        try self.makeXattr(key: "three", value: "tres").write(toPath: testFile.path)
-        self.assertXattrs(testFile, ["one": "uno", "two": "dos", "three": "tres"])
+        try self.makeXattr(key: "user.three", value: "tres").write(toPath: testFile.path)
+        try self.assertXattrs(testFile, ["user.one": "uno", "user.two": "dos", "user.three": "tres"])
 
 #if Foundation
         try ExtendedAttribute.write(
             [
-                .init(key: "four", data: "cuatro".data(using: .utf8)!),
-                .init(key: "five", data: "cinco".data(using: .utf8)!)
+                .init(key: "user.four", data: "cuatro".data(using: .utf8)!),
+                .init(key: "user.five", data: "cinco".data(using: .utf8)!)
             ],
             to: testFile
         )
 #else
         try ExtendedAttribute.write(
             [
-                .init(key: "four", data: "cuatro".data(using: .utf8)!),
-                .init(key: "five", data: "cinco".data(using: .utf8)!)
+                .init(key: "user.four", data: "cuatro".data(using: .utf8)!),
+                .init(key: "user.five", data: "cinco".data(using: .utf8)!)
             ],
             to: FilePath(testFile.path)
         )
 #endif
-        self.assertXattrs(testFile, ["one": "uno", "two": "dos", "three": "tres", "four": "cuatro", "five": "cinco"])
+        try self.assertXattrs(testFile, [
+            "user.one": "uno", "user.two": "dos", "user.three": "tres", "user.four": "cuatro", "user.five": "cinco"
+        ])
 
         try ExtendedAttribute.write(
             [
-                .init(key: "six", data: "seis".data(using: .utf8)!),
-                .init(key: "seven", data: "siete".data(using: .utf8)!)
+                .init(key: "user.six", data: "seis".data(using: .utf8)!),
+                .init(key: "user.seven", data: "siete".data(using: .utf8)!)
             ],
             to: FilePath(testFile.path)
         )
-        self.assertXattrs(
-            testFile,
-            ["one": "uno", "two": "dos", "three": "tres", "four": "cuatro", "five": "cinco", "six": "seis", "seven": "siete"]
+        try self.assertXattrs(testFile, [
+            "user.one": "uno", "user.two": "dos", "user.three": "tres", "user.four": "cuatro",
+            "user.five": "cinco", "user.six": "seis", "user.seven": "siete"]
         )
         
         try ExtendedAttribute.write(
             [
-                .init(key: "eight", data: "ocho".data(using: .utf8)!),
-                .init(key: "nine", data: "nueve".data(using: .utf8)!)
+                .init(key: "user.eight", data: "ocho".data(using: .utf8)!),
+                .init(key: "user.nine", data: "nueve".data(using: .utf8)!)
             ],
             toPath: testFile.path
         )
-        self.assertXattrs(
+        try self.assertXattrs(
             testFile,
             [
-                "one": "uno", "two": "dos", "three": "tres", "four": "cuatro", "five": "cinco",
-                "six": "seis", "seven": "siete", "eight": "ocho", "nine": "nueve"
+                "user.one": "uno", "user.two": "dos", "user.three": "tres", "user.four": "cuatro", "user.five": "cinco",
+                "user.six": "seis", "user.seven": "siete", "user.eight": "ocho", "user.nine": "nueve"
             ]
         )
 
         let fd = try FileDescriptor.open(FilePath(testFile.path), .writeOnly)
         defer { _ = try? fd.close() }
 
-        try self.makeXattr(key: "ten", value: "diez").write(to: fd)
-        self.assertXattrs(
+        try self.makeXattr(key: "user.ten", value: "diez").write(to: fd)
+        try self.assertXattrs(
             testFile,
             [
-                "one": "uno", "two": "dos", "three": "tres", "four": "cuatro", "five": "cinco",
-                "six": "seis", "seven": "siete", "eight": "ocho", "nine": "nueve", "ten": "diez"
+                "user.one": "uno", "user.two": "dos", "user.three": "tres", "user.four": "cuatro", "user.five": "cinco",
+                "user.six": "seis", "user.seven": "siete", "user.eight": "ocho", "user.nine": "nueve", "user.ten": "diez"
             ]
         )
 
-        try self.makeXattr(key: "eleven", value: "once").write(toFileDescriptor: fd.rawValue)
-        self.assertXattrs(
+        try self.makeXattr(key: "user.eleven", value: "once").write(toFileDescriptor: fd.rawValue)
+        try self.assertXattrs(
             testFile,
             [
-                "one": "uno", "two": "dos", "three": "tres", "four": "cuatro", "five": "cinco",
-                "six": "seis", "seven": "siete", "eight": "ocho", "nine": "nueve", "ten": "diez", "eleven": "once"
+                "user.one": "uno", "user.two": "dos", "user.three": "tres", "user.four": "cuatro", "user.five": "cinco",
+                "user.six": "seis", "user.seven": "siete", "user.eight": "ocho", "user.nine": "nueve", "user.ten": "diez",
+                "user.eleven": "once"
             ]
         )
     }
 
+#if canImport(Darwin) // Linux does not allow setting user.xattrs on symlinks
+    @Test
     func testWriteExtendedAttributesToSymlink() throws {
         let orig = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
         let link = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
@@ -448,18 +589,18 @@ final class ExtendedAttributeTests: XCTestCase {
         try self.makeXattr(key: "a", value: "A").write(to: FilePath(link.path), options: .noTraverseLink)
         try self.makeXattr(key: "b", value: "B").write(to: FilePath(link.path), options: [])
 #endif
-        self.assertXattrs(link, ["a": "A"], options: .noTraverseLink)
-        self.assertXattrs(orig, ["b": "B"], options: .noTraverseLink)
+        try self.assertXattrs(link, ["a": "A"], options: .noTraverseLink)
+        try self.assertXattrs(orig, ["b": "B"], options: .noTraverseLink)
 
         try self.makeXattr(key: "c", value: "C").write(to: FilePath(link.path), options: .noTraverseLink)
         try self.makeXattr(key: "d", value: "D").write(to: FilePath(link.path), options: [])
-        self.assertXattrs(link, ["a": "A", "c": "C"], options: .noTraverseLink)
-        self.assertXattrs(orig, ["b": "B", "d": "D"], options: .noTraverseLink)
+        try self.assertXattrs(link, ["a": "A", "c": "C"], options: .noTraverseLink)
+        try self.assertXattrs(orig, ["b": "B", "d": "D"], options: .noTraverseLink)
 
         try self.makeXattr(key: "e", value: "E").write(toPath: link.path, options: .noTraverseLink)
         try self.makeXattr(key: "f", value: "F").write(toPath: link.path, options: [])
-        self.assertXattrs(link, ["a": "A", "c": "C", "e": "E"], options: .noTraverseLink)
-        self.assertXattrs(orig, ["b": "B", "d": "D", "f": "F"], options: .noTraverseLink)
+        try self.assertXattrs(link, ["a": "A", "c": "C", "e": "E"], options: .noTraverseLink)
+        try self.assertXattrs(orig, ["b": "B", "d": "D", "f": "F"], options: .noTraverseLink)
 
 #if Foundation
         try ExtendedAttribute.write(
@@ -484,8 +625,8 @@ final class ExtendedAttributeTests: XCTestCase {
             options: []
         )
 #endif
-        self.assertXattrs(link, ["a": "A", "c": "C", "e": "E", "g": "G", "h": "H"], options: .noTraverseLink)
-        self.assertXattrs(orig, ["b": "B", "d": "D", "f": "F", "i": "I", "j": "J"], options: .noTraverseLink)
+        try self.assertXattrs(link, ["a": "A", "c": "C", "e": "E", "g": "G", "h": "H"], options: .noTraverseLink)
+        try self.assertXattrs(orig, ["b": "B", "d": "D", "f": "F", "i": "I", "j": "J"], options: .noTraverseLink)
 
         try ExtendedAttribute.write(
             [self.makeXattr(key: "k", value: "K"), self.makeXattr(key: "l", value: "L")],
@@ -497,12 +638,12 @@ final class ExtendedAttributeTests: XCTestCase {
             to: FilePath(link.path),
             options: []
         )
-        self.assertXattrs(
+        try self.assertXattrs(
             link,
             ["a": "A", "c": "C", "e": "E", "g": "G", "h": "H", "k": "K", "l": "L"],
             options: .noTraverseLink
         )
-        self.assertXattrs(
+        try self.assertXattrs(
             orig,
             ["b": "B", "d": "D", "f": "F", "i": "I", "j": "J", "m": "M", "n": "N"],
             options: .noTraverseLink
@@ -518,59 +659,69 @@ final class ExtendedAttributeTests: XCTestCase {
             toPath: link.path,
             options: []
         )
-        self.assertXattrs(
+        try self.assertXattrs(
             link,
             ["a": "A", "c": "C", "e": "E", "g": "G", "h": "H", "k": "K", "l": "L", "o": "O", "p": "P"],
             options: .noTraverseLink
         )
-        self.assertXattrs(
+        try self.assertXattrs(
             orig,
             ["b": "B", "d": "D", "f": "F", "i": "I", "j": "J", "m": "M", "n": "N", "q": "Q", "r": "R"],
             options: .noTraverseLink
         )
     }
+#endif
 
+    @Test
     func testRemoveExtendedAttributes() throws {
         let testFile = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
         try Data().write(to: testFile)
         defer { _ = try? FileManager.default.removeItem(at: testFile) }
 
         for eachChar in "abcdefghi" {
+            let key = "user.\(String(eachChar))"
 #if Foundation
-            try self.makeXattr(key: String(eachChar), value: String(eachChar).uppercased()).write(to: testFile)
+            try self.makeXattr(key: key, value: String(eachChar).uppercased()).write(to: testFile)
 #else
-            try self.makeXattr(key: String(eachChar), value: String(eachChar).uppercased()).write(toPath: testFile.path)
+            try self.makeXattr(key: key, value: String(eachChar).uppercased()).write(toPath: testFile.path)
 #endif
         }
 
-        self.assertXattrs(
+        try self.assertXattrs(
             testFile,
-            ["a": "A", "b": "B", "c": "C", "d": "D", "e": "E", "f": "F", "g": "G", "h": "H", "i": "I"]
+            [
+                "user.a": "A", "user.b": "B", "user.c": "C", "user.d": "D", "user.e": "E", 
+                "user.f": "F", "user.g": "G", "user.h": "H", "user.i": "I"
+            ]
         )
 
 #if Foundation
-        try ExtendedAttribute.remove(keys: ["a", "b"], at: testFile)
+        try ExtendedAttribute.remove(keys: ["user.a", "user.b"], at: testFile)
 #else
-        try ExtendedAttribute.remove(keys: ["a", "b"], atPath: testFile.path)
+        try ExtendedAttribute.remove(keys: ["user.a", "user.b"], atPath: testFile.path)
 #endif
-        self.assertXattrs(testFile, ["c": "C", "d": "D", "e": "E", "f": "F", "g": "G", "h": "H", "i": "I"])
+        try self.assertXattrs(testFile, [
+            "user.c": "C", "user.d": "D", "user.e": "E", "user.f": "F", "user.g": "G", "user.h": "H", "user.i": "I"
+        ])
 
-        try ExtendedAttribute.remove(keys: ["c", "d"], at: FilePath(testFile.path))
-        self.assertXattrs(testFile, ["e": "E", "f": "F", "g": "G", "h": "H", "i": "I"])
+        try ExtendedAttribute.remove(keys: ["user.c", "user.d"], at: FilePath(testFile.path))
+        try self.assertXattrs(testFile, ["user.e": "E", "user.f": "F", "user.g": "G", "user.h": "H", "user.i": "I"])
 
-        try ExtendedAttribute.remove(keys: ["e", "f", "g"], atPath: testFile.path)
-        self.assertXattrs(testFile, ["h": "H", "i": "I"])
+        try ExtendedAttribute.remove(keys: ["user.e", "user.f", "user.g"], atPath: testFile.path)
+        try self.assertXattrs(testFile, ["user.h": "H", "user.i": "I"])
 
         let fd = try FileDescriptor.open(FilePath(testFile.path), .writeOnly)
         defer { _ = try? fd.close() }
 
-        try ExtendedAttribute.remove(keys: ["h"], at: fd)
-        self.assertXattrs(testFile, ["i": "I"])
+        try ExtendedAttribute.remove(keys: ["user.h"], at: fd)
+        try self.assertXattrs(testFile, ["user.i": "I"])
 
-        try ExtendedAttribute.remove(keys: ["i"], atFileDescriptor: fd.rawValue)
-        self.assertXattrs(testFile, [:])
+        try ExtendedAttribute.remove(keys: ["user.i"], atFileDescriptor: fd.rawValue)
+        try self.assertXattrs(testFile, [:])
     }
 
+#if canImport(Darwin) // Linux does not allow setting user.xattrs on symlinks
+    @Test
     func testRemoveExtendedAttributesFromLink() throws {
         let orig = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
         try Data().write(to: orig)
@@ -592,11 +743,11 @@ final class ExtendedAttributeTests: XCTestCase {
 #endif
         }
 
-        self.assertXattrs( orig, [
+        try self.assertXattrs( orig, [
             "a": "A", "b": "B", "c": "C", "d": "D", "e": "E", "f": "F",
             "g": "G", "h": "H", "i": "I", "j": "J", "k": "K", "l": "L"
         ])
-        self.assertXattrs(
+        try self.assertXattrs(
             link,
             [
                 "a": "A", "b": "B", "c": "C", "d": "D", "e": "E", "f": "F",
@@ -612,11 +763,11 @@ final class ExtendedAttributeTests: XCTestCase {
         try ExtendedAttribute.remove(keys: ["a", "b"], at: FilePath(link.path), options: .noTraverseLink)
         try ExtendedAttribute.remove(keys: ["c", "d"], at: FilePath(link.path), options: [])
 #endif
-        self.assertXattrs(
+        try self.assertXattrs(
             orig,
             ["a": "A", "b": "B", "e": "E", "f": "F", "g": "G", "h": "H", "i": "I", "j": "J", "k": "K", "l": "L"]
         )
-        self.assertXattrs(
+        try self.assertXattrs(
             link,
             ["c": "C", "d": "D", "e": "E", "f": "F", "g": "G", "h": "H", "i": "I", "j": "J", "k": "K", "l": "L"],
             options: .noTraverseLink
@@ -624,8 +775,8 @@ final class ExtendedAttributeTests: XCTestCase {
 
         try ExtendedAttribute.remove(keys: ["e", "f"], at: FilePath(link.path), options: .noTraverseLink)
         try ExtendedAttribute.remove(keys: ["g", "h"], at: FilePath(link.path), options: [])
-        self.assertXattrs(orig, ["a": "A", "b": "B", "e": "E", "f": "F", "i": "I", "j": "J", "k": "K", "l": "L"])
-        self.assertXattrs(
+        try self.assertXattrs(orig, ["a": "A", "b": "B", "e": "E", "f": "F", "i": "I", "j": "J", "k": "K", "l": "L"])
+        try self.assertXattrs(
             link,
             ["c": "C", "d": "D", "g": "G", "h": "H", "i": "I", "j": "J", "k": "K", "l": "L"],
             options: .noTraverseLink
@@ -633,33 +784,45 @@ final class ExtendedAttributeTests: XCTestCase {
         
         try ExtendedAttribute.remove(keys: ["i", "j"], atPath: link.path, options: .noTraverseLink)
         try ExtendedAttribute.remove(keys: ["k", "l"], atPath: link.path, options: [])
-        self.assertXattrs(orig, ["a": "A", "b": "B", "e": "E", "f": "F", "i": "I", "j": "J"])
-        self.assertXattrs(link, ["c": "C", "d": "D", "g": "G", "h": "H", "k": "K", "l": "L"], options: .noTraverseLink)
+        try self.assertXattrs(orig, ["a": "A", "b": "B", "e": "E", "f": "F", "i": "I", "j": "J"])
+        try self.assertXattrs(link, ["c": "C", "d": "D", "g": "G", "h": "H", "k": "K", "l": "L"], options: .noTraverseLink)
     }
+#endif
 
 #if Foundation
+    @Test
     func testFailsWithNonFileURLs() {
         let nonFileURL = URL(string: "https://www.charlessoft.com/index.html")!
 
-        XCTAssertThrowsError(try ExtendedAttribute.list(at: nonFileURL)) {
-            XCTAssertEqual(($0 as? CocoaError)?.code, .fileReadUnsupportedScheme)
-        }
+        #expect(
+            #expect(throws: CocoaError.self) {
+                try ExtendedAttribute.list(at: nonFileURL)
+            }?.code == .fileReadUnsupportedScheme
+        )
 
-        XCTAssertThrowsError(try ExtendedAttribute(at: nonFileURL, key: "foo")) {
-            XCTAssertEqual(($0 as? CocoaError)?.code, .fileReadUnsupportedScheme)
-        }
+        #expect(
+            #expect(throws: CocoaError.self) {
+                try ExtendedAttribute(at: nonFileURL, key: "user.foo")
+            }?.code == .fileReadUnsupportedScheme
+        )
 
-        XCTAssertThrowsError(try ExtendedAttribute(key: "key", data: Data()).write(to: nonFileURL)) {
-            XCTAssertEqual(($0 as? CocoaError)?.code, .fileWriteUnsupportedScheme)
-        }
+        #expect(
+            #expect(throws: CocoaError.self) {
+                try ExtendedAttribute(key: "key", data: Data()).write(to: nonFileURL)
+            }?.code == .fileWriteUnsupportedScheme
+        )
 
-        XCTAssertThrowsError(try ExtendedAttribute.write(["1", "2"].map { .init(key: $0, data: Data()) }, to: nonFileURL)) {
-            XCTAssertEqual(($0 as? CocoaError)?.code, .fileWriteUnsupportedScheme)
-        }
+        #expect(
+            #expect(throws: CocoaError.self) {
+                try ExtendedAttribute.write(["1", "2"].map { .init(key: $0, data: Data()) }, to: nonFileURL)
+            }?.code == .fileWriteUnsupportedScheme
+        )
 
-        XCTAssertThrowsError(try ExtendedAttribute.remove(keys: ["k1", "k2"], at: nonFileURL)) {
-            XCTAssertEqual(($0 as? CocoaError)?.code, .fileWriteUnsupportedScheme)
-        }
+        #expect(
+            #expect(throws: CocoaError.self) {
+                try ExtendedAttribute.remove(keys: ["k1", "k2"], at: nonFileURL)
+            }?.code == .fileWriteUnsupportedScheme
+        )
     }
 #endif
 }

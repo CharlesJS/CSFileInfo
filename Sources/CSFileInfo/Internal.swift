@@ -9,6 +9,7 @@
 import Darwin
 #else
 import Glibc
+private let NSEC_PER_SEC = 1_000_000_000
 #endif
 
 #if Foundation
@@ -20,20 +21,18 @@ import Foundation
 #endif
 
 #if DEBUG
-nonisolated(unsafe) private var emulatedVersion: Int = .max
+@TaskLocal private var emulatedVersion: Int = .max
 
 func emulateOSVersion(_ version: Int, closure: () throws -> Void) rethrows {
-    emulatedVersion = version
-    defer { emulatedVersion = .max }
-
-    try closure()
+    try $emulatedVersion.withValue(version) {
+        try closure()
+    }
 }
 
-func emulateOSVersionAsync(_ version: Int, closure: () async throws -> Void) async throws {
-    emulatedVersion = version
-    defer { emulatedVersion = .max }
-
-    try await closure()
+func emulateOSVersionAsync(_ version: Int, closure: () async throws -> Void) async rethrows {
+    try await $emulatedVersion.withValue(version) {
+        try await closure()
+    }
 }
 
 package func versionCheck(_ version: Int) -> Bool { emulatedVersion >= version }
@@ -42,7 +41,11 @@ package func versionCheck(_ version: Int) -> Bool { emulatedVersion >= version }
 #endif
 
 func fsidsEqual(_ lhs: fsid_t?, _ rhs: fsid_t?) -> Bool {
+#if canImport(Darwin)
     lhs?.val.0 == rhs?.val.0 && lhs?.val.1 == rhs?.val.1
+#elseif canImport(Glibc)
+    lhs?.__val.0 == rhs?.__val.0 && lhs?.__val.1 == rhs?.__val.1
+#endif
 }
 
 #if Foundation
@@ -55,7 +58,11 @@ extension Date {
         var iPart = 0.0
         let fPart = modf(self.timeIntervalSince1970, &iPart)
 
+#if canImport(Darwin)
         return Darwin.timespec(tv_sec: __darwin_time_t(lrint(iPart)), tv_nsec: lrint(fPart * Double(NSEC_PER_SEC)))
+#else
+        return Glibc.timespec(tv_sec: __time_t(lrint(iPart)), tv_nsec: lrint(fPart * Double(NSEC_PER_SEC)))
+#endif
     }
 }
 #endif

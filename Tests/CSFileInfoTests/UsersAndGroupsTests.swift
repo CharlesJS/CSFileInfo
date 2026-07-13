@@ -6,16 +6,36 @@
 //
 
 @testable import CSFileInfo
-import System
-import XCTest
+import CShims
+import Testing
 
-class UsersAndGroupsTests: XCTestCase {
+#if canImport(Darwin)
+import Darwin
+#elseif canImport(Glibc)
+import Glibc
+#endif
+
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
+import Foundation
+#endif
+
+#if canImport(SystemPackage)
+import SystemPackage
+#else
+import System
+#endif
+
+@Suite
+struct UsersAndGroupsTests {
     private let meUID = getuid()
+#if canImport(Darwin)
     private let meUUID: UUID = {
         var uuid: uuid_t = (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 
         withUnsafeMutableBytes(of: &uuid) {
-            XCTAssertEqual($0.withMemoryRebound(to: UInt8.self) { mbr_uid_to_uuid(getuid(), $0.baseAddress) }, 0)
+            #expect($0.withMemoryRebound(to: UInt8.self) { mbr_uid_to_uuid(getuid(), $0.baseAddress) } == 0)
         }
 
         return UUID(uuid: uuid)
@@ -26,7 +46,7 @@ class UsersAndGroupsTests: XCTestCase {
         var uuid: uuid_t = (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 
         withUnsafeMutableBytes(of: &uuid) {
-            XCTAssertEqual($0.withMemoryRebound(to: UInt8.self) { mbr_uid_to_uuid(0, $0.baseAddress) }, 0)
+            #expect($0.withMemoryRebound(to: UInt8.self) { mbr_uid_to_uuid(0, $0.baseAddress) } == 0)
         }
 
         return UUID(uuid: uuid)
@@ -38,7 +58,7 @@ class UsersAndGroupsTests: XCTestCase {
         var uuid: uuid_t = (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 
         withUnsafeMutableBytes(of: &uuid) {
-            XCTAssertEqual($0.withMemoryRebound(to: UInt8.self) { mbr_gid_to_uuid(getgid(), $0.baseAddress) }, 0)
+            #expect($0.withMemoryRebound(to: UInt8.self) { mbr_gid_to_uuid(getgid(), $0.baseAddress) } == 0)
         }
 
         return UUID(uuid: uuid)
@@ -49,142 +69,189 @@ class UsersAndGroupsTests: XCTestCase {
         var uuid: uuid_t = (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 
         withUnsafeMutableBytes(of: &uuid) {
-            XCTAssertEqual($0.withMemoryRebound(to: UInt8.self) { mbr_gid_to_uuid(0, $0.baseAddress) }, 0)
+            #expect($0.withMemoryRebound(to: UInt8.self) { mbr_gid_to_uuid(0, $0.baseAddress) } == 0)
         }
 
         return UUID(uuid: uuid)
     }()
+#else
+    private let meUUID: UUID = UUID()
+    private let rootUUID: UUID = UUID()
+    private let myGroupUUID: UUID = UUID()
+    private let wheelUUID: UUID = UUID()
+    private let myGroupName = String(cString: getgrgid(getgid())!.pointee.gr_name)
+#endif
 
-    func testAll() throws {
-        for version in [10, 11, 12, 13] {
-            try emulateOSVersion(version) {
-                self.testCurrentUser()
-                self.testUserByID()
-                try self.testUserByName()
-                self.testCurrentGroup()
-                self.testGroupByID()
-                try self.testGroupByName()
-                try self.testLookupByUUID()
-            }
+    @Test(arguments: [10, 11, 12, 13, .max])
+    func testOSVersion(version: Int) throws {
+        try emulateOSVersion(version) {
+            try self.testCurrentUser()
+            try self.testUserByID()
+            try self.testUserByName()
+            try self.testCurrentGroup()
+            try self.testGroupByID()
+            try self.testGroupByName()
+#if canImport(Darwin)
+            try self.testLookupByUUID()
+#endif
         }
     }
 
-    func testCurrentUser() {
+    @Test
+    func testCurrentUser() throws {
         let user = User.current
 
-        XCTAssertEqual(user.id, getuid())
-        XCTAssertEqual(try user.name, NSUserName())
-        XCTAssertEqual(try UUID(uuid: user.uuid), meUUID)
-        XCTAssertEqual(user.description, "\(NSUserName()) (UID \(getuid()))")
-        XCTAssertEqual(try user.homeDirectory, FilePath(NSHomeDirectory()))
-        XCTAssertEqual(try user.homeDirectoryStringPath, NSHomeDirectory())
+        #expect(user.id == getuid())
+        #expect(try user.name == ProcessInfo.processInfo.userName)
+#if canImport(Darwin)
+        #expect(try UUID(uuid: user.uuid) == meUUID)
+#endif
+        #expect(user.description == "\(ProcessInfo.processInfo.userName) (UID \(getuid()))")
+        #expect(try user.homeDirectory == FilePath(FileManager.default.homeDirectoryForCurrentUser.path))
+        #expect(try user.homeDirectoryStringPath == FileManager.default.homeDirectoryForCurrentUser.path)
     }
 
-    func testUserByID() {
+    @Test
+    func testUserByID() throws {
         let me = User(id: getuid())
         let root = User(id: 0)
 
-        XCTAssertEqual(me.id, getuid())
-        XCTAssertEqual(try me.name, NSUserName())
-        XCTAssertEqual(try UUID(uuid: me.uuid), meUUID)
-        XCTAssertEqual(me.description, "\(NSUserName()) (UID \(getuid()))")
-        XCTAssertEqual(try me.homeDirectory, FilePath(NSHomeDirectory()))
-        XCTAssertEqual(try me.homeDirectoryStringPath, NSHomeDirectory())
+        #expect(me.id == getuid())
+        #expect(try me.name == ProcessInfo.processInfo.userName)
+#if canImport(Darwin)
+        #expect(try UUID(uuid: me.uuid) == meUUID)
+#endif
+        #expect(me.description == "\(ProcessInfo.processInfo.userName) (UID \(getuid()))")
+        #expect(try me.homeDirectory == FilePath(FileManager.default.homeDirectoryForCurrentUser.path))
+        #expect(try me.homeDirectoryStringPath == FileManager.default.homeDirectoryForCurrentUser.path)
 
-        XCTAssertEqual(root.id, 0)
-        XCTAssertEqual(try root.name, "root")
-        XCTAssertEqual(try UUID(uuid: root.uuid), rootUUID)
-        XCTAssertEqual(root.description, "root (UID 0)")
-        XCTAssertEqual(try root.homeDirectory, FilePath(NSHomeDirectoryForUser("root")!))
-        XCTAssertEqual(try root.homeDirectoryStringPath, NSHomeDirectoryForUser("root"))
+        #expect(root.id == 0)
+        #expect(try root.name == "root")
+#if canImport(Darwin)
+        #expect(try UUID(uuid: root.uuid) == rootUUID)
+#endif
+        #expect(root.description == "root (UID 0)")
+        #expect(try root.homeDirectory == FilePath(FileManager.default.homeDirectory(forUser: "root")!.path))
+        #expect(try root.homeDirectoryStringPath == FileManager.default.homeDirectory(forUser: "root")!.path)
     }
 
+    @Test
     func testUserByName() throws {
-        let me = try XCTUnwrap(User(name: NSUserName()))
-        let root = try XCTUnwrap(User(name: "root"))
+        let me = try #require(try User(name: ProcessInfo.processInfo.userName))
+        let root = try #require(try User(name: "root"))
 
-        XCTAssertEqual(me.id, getuid())
-        XCTAssertEqual(try me.name, NSUserName())
-        XCTAssertEqual(try UUID(uuid: me.uuid), meUUID)
-        XCTAssertEqual(me.description, "\(NSUserName()) (UID \(getuid()))")
-        XCTAssertEqual(try me.homeDirectory, FilePath(NSHomeDirectory()))
-        XCTAssertEqual(try me.homeDirectoryStringPath, NSHomeDirectory())
+        #expect(me.id == getuid())
+        #expect(try me.name == ProcessInfo.processInfo.userName)
+#if canImport(Darwin)
+        #expect(try UUID(uuid: me.uuid) == meUUID)
+#endif
+        #expect(me.description == "\(ProcessInfo.processInfo.userName) (UID \(getuid()))")
+        #expect(try me.homeDirectory == FilePath(FileManager.default.homeDirectoryForCurrentUser.path))
+        #expect(try me.homeDirectoryStringPath == FileManager.default.homeDirectoryForCurrentUser.path)
 
-        XCTAssertEqual(root.id, 0)
-        XCTAssertEqual(try root.name, "root")
-        XCTAssertEqual(try UUID(uuid: root.uuid), rootUUID)
-        XCTAssertEqual(root.description, "root (UID 0)")
-        XCTAssertEqual(try root.homeDirectory, FilePath(NSHomeDirectoryForUser("root")!))
-        XCTAssertEqual(try root.homeDirectoryStringPath, NSHomeDirectoryForUser("root"))
+        #expect(root.id == 0)
+        #expect(try root.name == "root")
+#if canImport(Darwin)
+        #expect(try UUID(uuid: root.uuid) == rootUUID)
+#endif
+        #expect(root.description == "root (UID 0)")
+        #expect(try root.homeDirectory == FilePath(FileManager.default.homeDirectory(forUser: "root")!.path))
+        #expect(try root.homeDirectoryStringPath == FileManager.default.homeDirectory(forUser: "root")!.path)
 
-        XCTAssertNil(try User(name: "fhqwhgads"))
+        #expect(try User(name: "fhqwhgads") == nil)
     }
 
-    func testCurrentGroup() {
+    @Test
+    func testCurrentGroup() throws {
         let group = Group.current
 
-        XCTAssertEqual(group.id, getgid())
-        XCTAssertEqual(try group.name, myGroupName)
-        XCTAssertEqual(try UUID(uuid: group.uuid), myGroupUUID)
-        XCTAssertEqual(group.description, "\(myGroupName) (GID \(getgid()))")
+        #expect(group.id == getgid())
+        #expect(try group.name == myGroupName)
+#if canImport(Darwin)
+        #expect(try UUID(uuid: group.uuid) == myGroupUUID)
+#endif
+        #expect(group.description == "\(myGroupName) (GID \(getgid()))")
     }
 
-    func testGroupByID() {
+    @Test
+    func testGroupByID() throws {
         let myGroup = Group(id: getgid())
         let wheel = Group(id: 0)
+        let wheelName = String(cString: getgrgid(0).pointee.gr_name!)
 
-        XCTAssertEqual(myGroup.id, getgid())
-        XCTAssertEqual(try myGroup.name, myGroupName)
-        XCTAssertEqual(try UUID(uuid: myGroup.uuid), myGroupUUID)
-        XCTAssertEqual(myGroup.description, "\(myGroupName) (GID \(getgid()))")
+        #expect(myGroup.id == getgid())
+        #expect(try myGroup.name == myGroupName)
+#if canImport(Darwin)
+        #expect(try UUID(uuid: myGroup.uuid) == myGroupUUID)
+#endif
+        #expect(myGroup.description == "\(myGroupName) (GID \(getgid()))")
 
-        XCTAssertEqual(wheel.id, 0)
-        XCTAssertEqual(try wheel.name, "wheel")
-        XCTAssertEqual(try UUID(uuid: wheel.uuid), wheelUUID)
-        XCTAssertEqual(wheel.description, "wheel (GID 0)")
+        #expect(wheel.id == 0)
+        #expect(try wheel.name == wheelName)
+        #expect(wheel.description == "\(wheelName) (GID 0)")
+#if canImport(Darwin)
+        #expect(try UUID(uuid: wheel.uuid) == wheelUUID)
+#endif
     }
 
+    @Test
     func testGroupByName() throws {
-        let myGroup = try XCTUnwrap(Group(name: myGroupName))
-        let wheel = try XCTUnwrap(Group(name: "wheel"))
+        let myGroup = try #require(try Group(name: myGroupName))
+        let wheelName = String(cString: getgrgid(0).pointee.gr_name!)
+        let wheel = try #require(try Group(name: wheelName))
 
-        XCTAssertEqual(myGroup.id, getgid())
-        XCTAssertEqual(try myGroup.name, myGroupName)
-        XCTAssertEqual(try UUID(uuid: myGroup.uuid), myGroupUUID)
-        XCTAssertEqual(myGroup.description, "\(myGroupName) (GID \(getgid()))")
+        #expect(myGroup.id == getgid())
+        #expect(try myGroup.name == myGroupName)
+#if canImport(Darwin)
+        #expect(try UUID(uuid: myGroup.uuid) == myGroupUUID)
+#endif
+        #expect(myGroup.description == "\(myGroupName) (GID \(getgid()))")
 
-        XCTAssertEqual(wheel.id, 0)
-        XCTAssertEqual(try wheel.name, "wheel")
-        XCTAssertEqual(try UUID(uuid: wheel.uuid), wheelUUID)
-        XCTAssertEqual(wheel.description, "wheel (GID 0)")
+        #expect(wheel.id == 0)
+        #expect(try wheel.name == wheelName)
+        #expect(wheel.description == "\(wheelName) (GID 0)")
+#if canImport(Darwin)
+        #expect(try UUID(uuid: wheel.uuid) == wheelUUID)
+#endif
 
-        XCTAssertNil(try Group(name: "not_a_real_group_name"))
+        #expect(try Group(name: "not_a_real_group_name") == nil)
     }
 
+#if canImport(Darwin)
+    @Test
     func testLookupByUUID() throws {
         let me = try UserOrGroup(uuid: meUUID.uuid)
         let root = try UserOrGroup(uuid: rootUUID.uuid)
         let myGroup = try UserOrGroup(uuid: myGroupUUID.uuid)
         let wheel = try UserOrGroup(uuid: wheelUUID.uuid)
+        let unknownUUID = UUID()
 
-        XCTAssertEqual(me, UserOrGroup.user(.current))
-        XCTAssertEqual(me.description, "\(NSUserName()) (UID \(getuid()))")
-
-        XCTAssertEqual(root, UserOrGroup.user(User(id: 0)))
-        XCTAssertEqual(root.description, "root (UID 0)")
-
-        XCTAssertEqual(myGroup, UserOrGroup.group(.current))
-        XCTAssertEqual(myGroup.description, "\(myGroupName) (GID \(getgid()))")
-
-        XCTAssertEqual(wheel, UserOrGroup.group(Group(id: 0)))
-        XCTAssertEqual(wheel.description, "wheel (GID 0)")
-
-        XCTAssertThrowsError(_ = try UserOrGroup(uuid: UUID().uuid)) {
 #if Foundation
-            XCTAssertEqual(($0 as? CocoaError)?.code, .fileReadNoSuchFile)
+        #expect(#expect(throws: CocoaError.self) { try UserOrGroup(uuid: unknownUUID.uuid) }?.code == .fileReadNoSuchFile)
 #else
-            XCTAssertEqual($0 as? Errno, .noSuchFileOrDirectory)
+        #expect(#expect(throws: Errno.self) { try UserOrGroup(uuid: unknownUUID.uuid) } == .noSuchFileOrDirectory)
 #endif
-        }
+        let unknown = try UserOrGroup(uuid: unknownUUID.uuid, allowUnknown: true)
+
+        #expect(me == UserOrGroup.user(.current))
+        #expect(me.description == "\(ProcessInfo.processInfo.userName) (UID \(getuid()))")
+
+        #expect(root == UserOrGroup.user(User(id: 0)))
+        #expect(root != UserOrGroup.group(Group(id: 0)))
+        #expect(root.description == "root (UID 0)")
+
+        #expect(myGroup == UserOrGroup.group(.current))
+        #expect(myGroup.description == "\(myGroupName) (GID \(getgid()))")
+
+        #expect(wheel == UserOrGroup.group(Group(id: 0)))
+        #expect(wheel != UserOrGroup.user(User(id: 0)))
+        #expect(wheel.description == "wheel (GID 0)")
+
+        #expect(unknown == UserOrGroup.unknown(unknownUUID.uuid))
+        #expect(unknown != UserOrGroup.user(.current))
+        #expect(unknown != UserOrGroup.group(.current))
+        #expect(unknown.description == "unknown: \(unknownUUID.uuidString)")
     }
+#endif
 }
+

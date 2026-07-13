@@ -6,13 +6,7 @@
 //
 
 import CSErrors
-import System
-
-#if canImport(Darwin)
-import Darwin
-#elseif canImport(Glibc)
-import Glibc
-#endif
+import CShims
 
 #if Foundation
 #if canImport(FoundationEssentials)
@@ -22,29 +16,53 @@ import Foundation
 #endif
 #endif
 
+#if canImport(SystemPackage)
+import SystemPackage
+#else
+import System
+#endif
+
 public struct ExtendedAttribute: Codable, Hashable, Sendable {
     public struct ReadOptions: OptionSet, Sendable {
         public let rawValue: Int32
         public init(rawValue: Int32) { self.rawValue = rawValue }
 
+#if canImport(Darwin)
         public static let noTraverseLink = ReadOptions(rawValue: XATTR_NOFOLLOW)
         public static let showCompression = ReadOptions(rawValue: XATTR_SHOWCOMPRESSION)
+#else
+        public static let noTraverseLink = ReadOptions(rawValue: 0x0001)
+        public static let showCompression = ReadOptions(rawValue: 0x0020)
+#endif
     }
     
     public struct WriteOptions: OptionSet, Sendable {
+#if canImport(Darwin)
         public let rawValue: Int32
         public init(rawValue: Int32) { self.rawValue = rawValue }
 
         public static let noTraverseLink = WriteOptions(rawValue: XATTR_NOFOLLOW)
-        public static let create = WriteOptions(rawValue: XATTR_CREATE)
-        public static let replace = WriteOptions(rawValue: XATTR_REPLACE)
+#else
+        public let rawValue: UInt64
+        public init(rawValue: UInt64) { self.rawValue = rawValue }
+
+        public static let noTraverseLink = WriteOptions(rawValue: 1 << 32)
+
+        fileprivate var xattrFlags: Int32 { Int32(bitPattern: UInt32(self.rawValue & 0xffffffff)) }
+#endif
+        public static let create = WriteOptions(rawValue: RawValue(XATTR_CREATE))
+        public static let replace = WriteOptions(rawValue: RawValue(XATTR_REPLACE))
     }
 
     public struct RemoveOptions: OptionSet, Sendable {
         public let rawValue: Int32
         public init(rawValue: Int32) { self.rawValue = rawValue }
 
+#if canImport(Darwin)
         public static let noTraverseLink = RemoveOptions(rawValue: XATTR_NOFOLLOW)
+#else
+        public static let noTraverseLink = RemoveOptions(rawValue: 0x0001)
+#endif
     }
 
 #if Foundation
@@ -61,7 +79,33 @@ public struct ExtendedAttribute: Codable, Hashable, Sendable {
 
     @available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, macCatalyst 14.0, *)
     public static func list(at path: FilePath, options: ReadOptions = []) throws -> [ExtendedAttribute] {
+#if canImport(Darwin)
         let fdOptions: FileDescriptor.OpenOptions = options.contains(.noTraverseLink) ? .symlink : []
+#else
+        if try options.contains(.noTraverseLink) && self.isLink(at: path) {
+            let bufsize = try callPOSIXFunction(expect: .nonNegative, path: path) {
+                path.withPlatformString {
+                    llistxattr($0, nil, 0)
+                }
+            }
+
+            return try withUnsafeTemporaryAllocation(of: UInt8.self, capacity: bufsize) { buf in
+                let size = try callPOSIXFunction(expect: .nonNegative, path: path) {
+                    path.withPlatformString {
+                        llistxattr($0, buf.baseAddress, buf.count)
+                    }
+                }
+
+                return try buf.prefix(size).split(separator: 0).map {
+                    let key = String(decoding: $0, as: UTF8.self)
+
+                    return try ExtendedAttribute(symlinkAt: path, key: key, options: options)
+                }
+            }
+        }
+
+        let fdOptions: FileDescriptor.OpenOptions = []
+#endif
         let descriptor = try FileDescriptor.open(path, .readOnly, options: fdOptions)
         defer { _ = try? descriptor.close() }
 
@@ -69,6 +113,7 @@ public struct ExtendedAttribute: Codable, Hashable, Sendable {
     }
 
     public static func list(atPath path: String, options: ReadOptions = []) throws -> [ExtendedAttribute] {
+#if canImport(Darwin)
         guard #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, macCatalyst 14.0, *), versionCheck(11) else {
             let flags: Int32 = options.contains(.noTraverseLink) ? O_RDONLY | O_SYMLINK : O_RDONLY
             let fd = try callPOSIXFunction(expect: .nonNegative, path: path) { open(path, flags) }
@@ -76,6 +121,7 @@ public struct ExtendedAttribute: Codable, Hashable, Sendable {
 
             return try self.list(path: path, fd: fd, options: options)
         }
+#endif
 
         return try self.list(at: FilePath(path), options: options)
     }
@@ -89,16 +135,36 @@ public struct ExtendedAttribute: Codable, Hashable, Sendable {
         try self.list(path: nil, fd: fd, options: options)
     }
 
+#if !canImport(Darwin)
+    private static func isLink(at path: FilePath) throws -> Bool {
+        let stat = try path.withPlatformString { cPath in
+            try callPOSIXFunction(expect: .zero, path: path) { lstat(cPath, $0) }
+        }
+
+        return stat.st_mode & mode_t(bitPattern: S_IFMT) == mode_t(bitPattern: S_IFLNK)
+    }
+#endif
+
     private static func list(path: String?, fd: Int32, options opts: ReadOptions) throws -> [ExtendedAttribute] {
         // XATTR_NOFOLLOW is not available for flistxattr
         let options = opts.subtracting(.noTraverseLink)
 
-        let bufsize = try callPOSIXFunction(expect: .nonNegative, path: path) { flistxattr(fd, nil, 0, options.rawValue) }
+        let bufsize = try callPOSIXFunction(expect: .nonNegative, path: path) {
+#if canImport(Darwin)
+            flistxattr(fd, nil, 0, options.rawValue)
+#else
+            flistxattr(fd, nil, 0)
+#endif
+        }
         let buf = UnsafeMutableBufferPointer<UInt8>.allocate(capacity: bufsize)
         defer { buf.deallocate() }
 
         let size = try callPOSIXFunction(expect: .nonNegative, path: path) {
+#if canImport(Darwin)
             flistxattr(fd, buf.baseAddress, buf.count, options.rawValue)
+#else
+            flistxattr(fd, buf.baseAddress, buf.count)
+#endif
         }
 
         return try buf[..<size].split(separator: 0).map {
@@ -114,7 +180,19 @@ public struct ExtendedAttribute: Codable, Hashable, Sendable {
         to path: FilePath,
         options: WriteOptions = []
     ) throws {
+#if canImport(Darwin)
         let fdOptions: FileDescriptor.OpenOptions = options.contains(.noTraverseLink) ? .symlink : []
+#else
+        if try options.contains(.noTraverseLink) && self.isLink(at: path) {
+            for eachAttr in attrs {
+                try path.withPlatformString { try eachAttr.write(path: path.string, cPath: $0, options: options) }
+            }
+
+            return
+        }
+
+        let fdOptions: FileDescriptor.OpenOptions = []
+#endif
         let descriptor = try FileDescriptor.open(path, .writeOnly, options: fdOptions)
         defer { _ = try? descriptor.close() }
 
@@ -128,6 +206,7 @@ public struct ExtendedAttribute: Codable, Hashable, Sendable {
         toPath path: String,
         options: WriteOptions = []
     ) throws {
+#if canImport(Darwin)
         guard #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, macCatalyst 14.0, *), versionCheck(11) else {
             let flags: Int32 = options.contains(.noTraverseLink) ? O_WRONLY | O_SYMLINK : O_WRONLY
             let fd = try callPOSIXFunction(expect: .nonNegative, path: path) { open(path, flags) }
@@ -139,6 +218,7 @@ public struct ExtendedAttribute: Codable, Hashable, Sendable {
 
             return
         }
+#endif
 
         try self.write(attrs, to: FilePath(path), options: options)
     }
@@ -158,7 +238,23 @@ public struct ExtendedAttribute: Codable, Hashable, Sendable {
 
     @available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, macCatalyst 14.0, *)
     public static func remove(keys: some Sequence<String>, at path: FilePath, options: RemoveOptions = []) throws {
+#if canImport(Darwin)
         let openOptions: FileDescriptor.OpenOptions = options.contains(.noTraverseLink) ? .symlink : []
+#else
+        if try options.contains(.noTraverseLink) && self.isLink(at: path) {
+            for eachKey in keys {
+                try callPOSIXFunction(expect: .zero, path: path) {
+                    path.withPlatformString {
+                        lremovexattr($0, eachKey)
+                    }
+                }
+            }
+
+            return
+        }
+
+        let openOptions: FileDescriptor.OpenOptions = []
+#endif
         let fileDescriptor = try FileDescriptor.open(path, .writeOnly, options: openOptions)
         defer { _ = try? fileDescriptor.close() }
 
@@ -171,6 +267,7 @@ public struct ExtendedAttribute: Codable, Hashable, Sendable {
     }
 
     public static func remove(keys: some Sequence<String>, atPath path: String, options: RemoveOptions = []) throws {
+#if canImport(Darwin)
         guard #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, macCatalyst 14.0, *), versionCheck(11) else {
             let flags = options.contains(.noTraverseLink) ? O_WRONLY | O_SYMLINK : O_WRONLY
             let fd = try callPOSIXFunction(expect: .nonNegative) { open(path, flags) }
@@ -179,6 +276,7 @@ public struct ExtendedAttribute: Codable, Hashable, Sendable {
             try self.remove(keys: keys, path: path, fd: fd)
             return
         }
+#endif
 
         try self.remove(keys: keys, at: FilePath(path), options: options)
     }
@@ -208,7 +306,13 @@ public struct ExtendedAttribute: Codable, Hashable, Sendable {
 
     private static func remove(keys: some Sequence<String>, path: String?, fd: Int32) throws {
         for eachKey in keys {
-            try callPOSIXFunction(expect: .zero, path: path) { fremovexattr(fd, eachKey, 0) }
+            try callPOSIXFunction(expect: .zero, path: path) {
+#if canImport(Darwin)
+                fremovexattr(fd, eachKey, 0)
+#else
+                fremovexattr(fd, eachKey)
+#endif
+            }
         }
     }
 
@@ -259,13 +363,29 @@ public struct ExtendedAttribute: Codable, Hashable, Sendable {
 
     private init(path: String, cPath: UnsafePointer<CChar>, key: String, options: ReadOptions) throws {
         let bufsize = try callPOSIXFunction(expect: .nonNegative, path: path) {
+#if canImport(Darwin)
             getxattr(cPath, key, nil, 0, 0, options.rawValue)
+#else
+            if options.contains(.noTraverseLink) {
+                lgetxattr(cPath, key, nil, 0)
+            } else {
+                getxattr(cPath, key, nil, 0)
+            }
+#endif
         }
 
         self.key = key
         self.data = try ContiguousArray<UInt8>(unsafeUninitializedCapacity: bufsize) { buffer, count in
             count = try callPOSIXFunction(expect: .nonNegative, path: path) {
+#if canImport(Darwin)
                 getxattr(cPath, key, buffer.baseAddress, buffer.count, 0, options.rawValue)
+#else
+                if options.contains(.noTraverseLink) {
+                    lgetxattr(cPath, key, buffer.baseAddress, buffer.count)
+                } else {
+                    getxattr(cPath, key, buffer.baseAddress, buffer.count)
+                }
+#endif
             }
         }
     }
@@ -284,16 +404,43 @@ public struct ExtendedAttribute: Codable, Hashable, Sendable {
         let options = opts.subtracting(.noTraverseLink)
 
         let bufsize = try callPOSIXFunction(expect: .nonNegative, path: path) {
+#if canImport(Darwin)
             fgetxattr(fd, key, nil, 0, 0, options.rawValue)
+#else
+            fgetxattr(fd, key, nil, 0)
+#endif
         }
 
         self.key = key
         self.data = try ContiguousArray<UInt8>(unsafeUninitializedCapacity: bufsize) { buffer, count in
             count = try callPOSIXFunction(expect: .nonNegative, path: path) {
+#if canImport(Darwin)
                 fgetxattr(fd, key, buffer.baseAddress, buffer.count, 0, options.rawValue)
+#else
+                fgetxattr(fd, key, buffer.baseAddress, buffer.count)
+#endif
             }
         }
     }
+
+#if !canImport(Darwin)
+    private init(symlinkAt path: FilePath, key: String, options: ReadOptions) throws {
+        let bufsize = try callPOSIXFunction(expect: .nonNegative, path: path) {
+            path.withPlatformString {
+                lgetxattr($0, key, nil, 0)
+            }
+        }
+
+        self.key = key
+        self.data = try ContiguousArray<UInt8>(unsafeUninitializedCapacity: bufsize) { buffer, count in
+            count = try callPOSIXFunction(expect: .nonNegative, path: path) {
+                path.withPlatformString {
+                    lgetxattr($0, key, buffer.baseAddress, buffer.count)
+                }
+            }
+        }
+    }
+#endif
 
     @available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, macCatalyst 14.0, *)
     public func write(to path: FilePath, options: WriteOptions = []) throws {
@@ -329,7 +476,15 @@ public struct ExtendedAttribute: Codable, Hashable, Sendable {
     private func write(path: String, cPath: UnsafePointer<CChar>, options: WriteOptions) throws {
         try self.data.withUnsafeBytes { bytes in
             _ = try callPOSIXFunction(expect: .zero, path: path) {
+#if canImport(Darwin)
                 setxattr(cPath, self.key, bytes.baseAddress, bytes.count, 0, options.rawValue)
+#else
+                if options.contains(.noTraverseLink) {
+                    return lsetxattr(cPath, self.key, bytes.baseAddress, bytes.count, options.xattrFlags)
+                } else {
+                    return setxattr(cPath, self.key, bytes.baseAddress, bytes.count, options.xattrFlags)
+                }
+#endif
             }
         }
     }
@@ -349,7 +504,11 @@ public struct ExtendedAttribute: Codable, Hashable, Sendable {
 
         try self.data.withUnsafeBytes { bytes in
             _ = try callPOSIXFunction(expect: .zero, path: path) {
+#if canImport(Darwin)
                 fsetxattr(fd, self.key, bytes.baseAddress, bytes.count, 0, options.rawValue)
+#else
+                fsetxattr(fd, self.key, bytes.baseAddress, bytes.count, options.xattrFlags)
+#endif
             }
         }
     }

@@ -3,7 +3,7 @@
 //  CSFileUtils
 //
 //  Created by Charles Srstka on 2/19/12.
-//  Copyright © 2012-2023 Charles Srstka. All rights reserved.
+//  Copyright © 2012-2026 Charles Srstka. All rights reserved.
 //
 
 #if canImport(Darwin)
@@ -23,6 +23,7 @@ extension FileInfo {
         case userNameNotFound(String)
         case gidNotFound(gid_t)
         case groupNameNotFound(String)
+        case featureNotImplemented
         case unknownError
     }
 }

@@ -6,20 +6,38 @@
 //
 
 @testable import CSFileInfo
-import XCTest
+import Testing
 
-class InternalTests: XCTestCase {
+#if canImport(Darwin)
+import Darwin
+#elseif canImport(Glibc)
+import Glibc
+#endif
+
+@Suite
+struct InternalTests {
+    @Test
     func testHFSTypeCodeConversion() {
-        XCTAssertEqual(String(hfsTypeCode: 0x61626364), "abcd")
-        XCTAssertEqual("abcd".hfsTypeCode, 0x61626364)
-        XCTAssertEqual("abcde".hfsTypeCode, 0x61626364)
-        XCTAssertEqual("abc".hfsTypeCode, 0x61626320)
-        XCTAssertEqual("a".hfsTypeCode, 0x61202020)
+        #expect(String(hfsTypeCode: 0x61626364) == "abcd")
+        #expect("abcd".hfsTypeCode == 0x61626364)
+        #expect("abcde".hfsTypeCode == 0x61626364)
+        #expect("abc".hfsTypeCode == 0x61626320)
+        #expect("a".hfsTypeCode == 0x61202020)
     }
 
+#if canImport(Darwin)
+    @Test
     func testFSIDEquality() {
-        XCTAssertTrue(fsidsEqual(fsid_t(val: (1, 2)), fsid_t(val: (1, 2))))
-        XCTAssertFalse(fsidsEqual(fsid_t(val: (1, 2)), fsid_t(val: (2, 2))))
-        XCTAssertFalse(fsidsEqual(fsid_t(val: (1, 2)), fsid_t(val: (1, 1))))
+        #expect(fsidsEqual(fsid_t(val: (1, 2)), fsid_t(val: (1, 2))))
+        #expect(!fsidsEqual(fsid_t(val: (1, 2)), fsid_t(val: (2, 2))))
+        #expect(!fsidsEqual(fsid_t(val: (1, 2)), fsid_t(val: (1, 1))))
     }
+#else
+    @Test
+    func testFSIDEquality() {
+        #expect(fsidsEqual(fsid_t(__val: (1, 2)), fsid_t(__val: (1, 2))))
+        #expect(!fsidsEqual(fsid_t(__val: (1, 2)), fsid_t(__val: (2, 2))))
+        #expect(!fsidsEqual(fsid_t(__val: (1, 2)), fsid_t(__val: (1, 1))))
+    }
+#endif
 }

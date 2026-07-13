@@ -1,29 +1,49 @@
 import CSErrors
 @testable import CSFileInfo
+import CShims
 import DataParser
+import Testing
+
+#if canImport(Darwin)
+import Darwin
+#elseif canImport(Glibc)
+import Glibc
+#endif
+
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
+import Foundation
+#endif
+
+#if canImport(SystemPackage)
+import SystemPackage
+#else
 import System
-import XCTest
+#endif
 
-@available(macOS 13.0, *)
-final class ACLTests: XCTestCase {
-    func testACLs() throws {
-        let defaultACL = AccessControlList()
-        let fileACL = try AccessControlList(isDirectory: false)
-        let dirACL = try AccessControlList(isDirectory: true)
+@Suite
+struct ACLTests {
+    @Test
+    func testEmptyACL() throws {
+        let acl = AccessControlList()
 
-        try testACL(acl: defaultACL)
-        try testACL(acl: fileACL)
-        try testACL(acl: dirACL)
+        try testACL(acl: acl)
     }
 
     private func testACL(acl: AccessControlList) throws {
-        XCTAssertTrue(acl.description.starts(with: "!#acl "))
-
+#if canImport(Darwin) || os(FreeBSD)
+        #expect(acl.description.starts(with: "!#acl "))
         try self.testACLFlags(acl: acl)
+#else
+        #expect(try /^user::r|-w|-x|-\ngroup::r|-w|-x|-\nother::r|-w|-x|-$/.firstMatch(in: acl.description) != nil)
+#endif
+
         try self.testACLEntries(acl: acl)
-        self.testValidation(acl: acl)
+        try self.testValidation(acl: acl)
     }
 
+#if canImport(Darwin) || os(FreeBSD)
     private func testACLFlags(acl: AccessControlList) throws {
         try self.testACLFlag(acl: acl, flag: ACL_FLAG_DEFER_INHERIT, name: "defer_inherit", keyPath: \.deferInheritance)
         try self.testACLFlag(acl: acl, flag: ACL_FLAG_NO_INHERIT, name: "no_inherit", keyPath: \.noInheritance)
@@ -39,100 +59,146 @@ final class ACLTests: XCTestCase {
         var acl = originalACL
 
         acl[keyPath: keyPath] = false
-        XCTAssertFalse(acl.description.contains(name))
-        XCTAssertFalse(acl[keyPath: keyPath])
-        XCTAssertEqual(originalValue, originalACL[keyPath: keyPath])
+        #expect(!acl.description.contains(name))
+        #expect(!acl[keyPath: keyPath])
+        #expect(originalValue == originalACL[keyPath: keyPath])
         try self.assertACLFlag(acl: originalACL, flag: flag, value: originalValue)
         try self.assertACLFlag(acl: acl, flag: flag, value: false)
 
         acl[keyPath: keyPath] = true
-        XCTAssertTrue(acl.description.contains(name))
-        XCTAssertTrue(acl[keyPath: keyPath])
-        XCTAssertEqual(originalValue, originalACL[keyPath: keyPath])
+        #expect(acl.description.contains(name))
+        #expect(acl[keyPath: keyPath])
+        #expect(originalValue == originalACL[keyPath: keyPath])
         try self.assertACLFlag(acl: originalACL, flag: flag, value: originalValue)
         try self.assertACLFlag(acl: acl, flag: flag, value: true)
     }
 
-    private func assertACLFlag(acl: AccessControlList, flag: acl_flag_t, value: Bool) throws {
+    private func assertACLFlag(acl _acl: AccessControlList, flag: acl_flag_t, value: Bool) throws {
+        var acl = _acl
+        let rawACL = try acl.aclForWriting
+
         let flagset = try callPOSIXFunction(expect: .zero) {
-            acl_get_flagset_np(UnsafeMutableRawPointer(acl.aclForReading), $0)
+            acl_get_flagset_np(UnsafeMutableRawPointer(rawACL), $0)
         }
 
-        XCTAssertEqual(acl_get_flag_np(flagset, flag), value ? 1 : 0)
+        #expect(acl_get_flag_np(flagset, flag) == (value ? 1 : 0))
     }
+#endif
 
     private func testACLEntries(acl originalACL: AccessControlList) throws {
         var acl = originalACL
         let originalCount = originalACL.count
 
-        XCTAssertEqual(acl, originalACL)
-        XCTAssertEqual(acl.hashValue, originalACL.hashValue)
+        #expect(acl == originalACL)
+        #expect(acl.hashValue == originalACL.hashValue)
 
         var entry = AccessControlList.Entry()
+#if canImport(Darwin) || os(FreeBSD)
         entry.rule = .allow
         entry.owner = .user(.current)
         entry.permissions = [.readAttributes]
         entry.flags = [.inheritToFiles]
-
         acl.append(entry)
-        XCTAssertNotEqual(acl, originalACL)
-        XCTAssertNotEqual(acl.hashValue, originalACL.hashValue)
-        XCTAssertEqual(acl.count, originalCount + 1)
-        XCTAssertEqual(originalACL.count, originalCount)
-        XCTAssertEqual(acl.last?.rule, .allow)
-        XCTAssertEqual(acl.last?.owner, .user(User(id: getuid())))
-        XCTAssertEqual(acl.last?.permissions, .readAttributes)
-        XCTAssertEqual(acl.last?.flags, .inheritToFiles)
+#else
+        entry.scope = .user(.current)
+        entry.permissions = [.read]
+        acl.append(entry)
+#endif
+        #expect(acl != originalACL)
+        #expect(acl.hashValue != originalACL.hashValue)
+        #expect(acl.count == originalCount + 1)
+        #expect(originalACL.count == originalCount)
+#if canImport(Darwin) || os(FreeBSD)
+        #expect(acl.last?.rule == .allow)
+        #expect(acl.last?.owner == .user(User(id: getuid())))
+        #expect(acl.last?.permissions == .readAttributes)
+        #expect(acl.last?.flags == .inheritToFiles)
+#else
+        #expect(acl.contains { $0.scope == .user(User(id: getuid())) && $0.permissions == .read })
+#endif
 
         var acl2 = acl
-        XCTAssertEqual(acl, acl2)
-        XCTAssertEqual(acl.hashValue, acl2.hashValue)
+        #expect(acl == acl2)
+        #expect(acl.hashValue == acl2.hashValue)
+
+#if canImport(Darwin) || os(FreeBSD)
         acl2[originalCount].rule = .deny
-        XCTAssertNotEqual(acl, acl2)
-        XCTAssertNotEqual(acl.hashValue, acl2.hashValue)
+        #expect(acl != acl2)
+        #expect(acl.hashValue != acl2.hashValue)
+
         acl2[originalCount].owner = .group(.current)
         acl2[originalCount].permissions.insert(.readData)
         acl2[originalCount].flags.insert(.inheritToDirectories)
-        XCTAssertEqual(acl.last?.rule, .allow)
-        XCTAssertEqual(acl.last?.owner, .user(User(id: getuid())))
-        XCTAssertEqual(acl.last?.permissions, .readAttributes)
-        XCTAssertEqual(acl.last?.flags, .inheritToFiles)
-        XCTAssertEqual(acl2.last?.rule, .deny)
-        XCTAssertEqual(acl2.last?.owner, .group(Group(id: getgid())))
-        XCTAssertEqual(acl2.last?.permissions, [.readAttributes, .readData])
-        XCTAssertEqual(acl2.last?.flags, [.inheritToFiles, .inheritToDirectories])
+        #expect(acl.last?.rule == .allow)
+        #expect(acl.last?.owner == .user(User(id: getuid())))
+        #expect(acl.last?.permissions == .readAttributes)
+        #expect(acl.last?.flags == .inheritToFiles)
+        #expect(acl2.last?.rule == .deny)
+        #expect(acl2.last?.owner == .group(Group(id: getgid())))
+        #expect(acl2.last?.permissions == [.readAttributes, .readData])
+        #expect(acl2.last?.flags == [.inheritToFiles, .inheritToDirectories])
+#else
+        acl2[originalCount].scope = .group(.current)
+        acl2[originalCount].permissions.insert(.write)
+        #expect(acl.last?.scope == .user(User(id: getuid())))
+        #expect(acl.last?.permissions == .read)
+        #expect(acl2.last?.scope == .group(Group(id: getgid())))
+        #expect(acl2.last?.permissions == [.read, .write])
+#endif
 
         while(!acl2.isEmpty) {
             let count = acl2.count
             acl2.remove(at: count - 1)
-            XCTAssertEqual(acl2.count, count - 1)
-            XCTAssertEqual(acl.count, originalCount + 1)
+            #expect(acl2.count == count - 1)
+            #expect(acl.count == originalCount + 1)
         }
-        XCTAssertEqual(acl2.count, 0)
-        XCTAssertNil(acl2.first)
-        XCTAssertNil(acl2.last)
+        #expect(acl2.count == 0)
+        #expect(acl2.first == nil)
+        #expect(acl2.last == nil)
     }
 
-    private func testValidation(acl: AccessControlList) {
-        XCTAssertNoThrow(try acl.validate())
-        let aclPointer = UnsafeMutableRawPointer(acl.aclForReading)
+    private func testValidation(acl _acl: AccessControlList) throws {
+        var acl = _acl
+
+        #expect(throws: Never.self) { try acl.validate() }
+
+#if canImport(Darwin) || os(FreeBSD)
+        let aclPointer = UnsafeMutableRawPointer(try acl.aclForWriting)
         let magic = aclPointer.load(as: UInt32.self)
 
         // corrupt the underlying ACL so it fails validation
         aclPointer.storeBytes(of: 0, as: UInt32.self)
-        XCTAssertThrowsError(try acl.validate()) {
-            XCTAssertEqual($0 as? Errno, .invalidArgument)
-        }
+        #expect(#expect(throws: Errno.self) { try acl.validate() } == .invalidArgument)
 
-        XCTAssertTrue(Errno.invalidArgument.localizedDescription.hasSuffix(acl.description))
-        XCTAssertFalse(acl.noInheritance)
-        XCTAssertFalse(acl.deferInheritance)
+        #expect(Errno.invalidArgument.localizedDescription.hasSuffix(acl.description))
+        #expect(!acl.noInheritance)
+        #expect(!acl.deferInheritance)
 
         // restore the ACL and make it valid again
         aclPointer.storeBytes(of: magic, as: UInt32.self)
-        XCTAssertNoThrow(try acl.validate())
+        #expect(throws: Never.self) { try acl.validate() }
+#else
+        acl.remove(at: acl.firstIndex { $0.scope == .owner }!)
+        #expect(#expect(throws: AccessControlList.ValidationError.self) { try acl.validate() } == .missingEntry)
+
+        acl.append(.init(scope: .owner, permissions: .read))
+        #expect(throws: Never.self) { try acl.validate() }
+
+        acl.remove(at: acl.firstIndex { $0.scope == .groupOwner }!)
+        #expect(#expect(throws: AccessControlList.ValidationError.self) { try acl.validate() } == .missingEntry)
+
+        acl.append(.init(scope: .groupOwner, permissions: .read))
+        #expect(throws: Never.self) { try acl.validate() }
+
+        acl.remove(at: acl.firstIndex { $0.scope == .other }!)
+        #expect(#expect(throws: AccessControlList.ValidationError.self) { try acl.validate() } == .missingEntry)
+
+        acl.append(.init(scope: .other, permissions: .read))
+        #expect(throws: Never.self) { try acl.validate() }
+#endif
     }
 
+    @Test
     func testInvalidTagType() {
         var acl = acl_init(1)
         defer { acl_free(UnsafeMutableRawPointer(acl)) }
@@ -144,41 +210,55 @@ final class ACLTests: XCTestCase {
         let ptr = UnsafeMutableRawPointer(entry)
         ptr?.storeBytes(of: UInt32.max, toByteOffset: 4, as: UInt32.self)
 
-        XCTAssertThrowsError(try AccessControlList.Entry(aclEntry: entry!, isDirectory: false)) {
-            XCTAssertEqual($0 as? Errno, .invalidArgument)
-        }
+        #expect(
+            #expect(throws: Errno.self) {
+                try AccessControlList.Entry(aclEntry: entry!)
+            } == .invalidArgument
+        )
     }
 
-    func testDataRepresentation() throws {
+#if canImport(Darwin) || os(FreeBSD)
+    @Test
+    func testSerialization() throws {
         let data = Data([
             0x01, 0x2c, 0xc1, 0x6d, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x01, 0x79, 0xbe, 0xbb, 0x8a,
-            0x27, 0xc4, 0x4b, 0xf4, 0xa1, 0x3f, 0xf5, 0x4c, 0xd1, 0x34, 0x39, 0x86, 0x00, 0x00, 0x00, 0x81,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x01, 0xff, 0xff, 0xee, 0xee,
+            0xdd, 0xdd, 0xcc, 0xcc, 0xbb, 0xbb, 0xaa, 0xaa, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x81,
             0x00, 0x00, 0x08, 0x00, 0xab, 0xcd, 0xef, 0xab, 0xcd, 0xef, 0xab, 0xcd, 0xef, 0xab, 0xcd, 0xef,
             0x00, 0x00, 0x00, 0x14, 0x00, 0x00, 0x00, 0x42, 0x00, 0x00, 0x01, 0x00
         ])
 
-        var acl = try AccessControlList(isDirectory: true)
+        let textRepresentation = """
+        !#acl 1 defer_inherit
+        user:FFFFEEEE-DDDD-CCCC-BBBB-AAAA00000001:daemon:1:allow,limit_inherit:readsecurity
+        group:ABCDEFAB-CDEF-ABCD-EFAB-CDEF00000014:staff:20:deny,directory_inherit:writeattr
+        
+        """
+
+        var acl = AccessControlList()
         acl.deferInheritance = true
         acl.noInheritance = false
 
         var entry1 = AccessControlList.Entry()
         entry1.rule = .allow
-        entry1.owner = .user(.current)
+        entry1.owner = try .user(User(name: "daemon")!)
         entry1.permissions = .readSecurity
         entry1.flags = .limitInheritance
         acl.append(entry1)
 
         var entry2 = AccessControlList.Entry()
         entry2.rule = .deny
-        entry2.owner = .group(.current)
+        entry2.owner = try .group(Group(name: "staff")!)
         entry2.permissions = .writeAttributes
         entry2.flags = .inheritToDirectories
         acl.append(entry2)
 
-        XCTAssertEqual(try Data(acl.dataRepresentation(native: false)), Data(data))
-        XCTAssertEqual(try AccessControlList(data: data, nativeRepresentation: false, isDirectory: true), acl)
+        #expect(try acl.textRepresentation == textRepresentation)
+        #expect(try AccessControlList(textRepresentation: textRepresentation) == acl)
+
+        #expect(try Data(acl.dataRepresentation(native: false)) == data)
+        #expect(try AccessControlList(data: data, nativeRepresentation: false) == acl)
 
         let nonContiguousData: DispatchData = data.withUnsafeBytes {
             let bytes = UnsafeRawBufferPointer($0)
@@ -189,27 +269,59 @@ final class ACLTests: XCTestCase {
             return dispatchData
         }
 
-        XCTAssertEqual(nonContiguousData.regions.count, 2)
-        XCTAssertEqual(try AccessControlList(data: nonContiguousData, nativeRepresentation: false, isDirectory: true), acl)
+        #expect(nonContiguousData.regions.count == 2)
+        #expect(try AccessControlList(data: nonContiguousData, nativeRepresentation: false) == acl)
 
         let nativeData = try acl.dataRepresentation(native: true)
-        XCTAssertEqual(try AccessControlList(data: nativeData, nativeRepresentation: true, isDirectory: true), acl)
+        #expect(try AccessControlList(data: nativeData, nativeRepresentation: true) == acl)
 
         if ByteOrder.host == ByteOrder.little {
-            XCTAssertEqual(data, Data(nativeData))
+            #expect(data == Data(nativeData))
         } else {
-            XCTAssertNotEqual(data, Data(nativeData))
+            #expect(data != Data(nativeData))
         }
     }
 
+    @Test
     func testReadInvalidDataRepresentation() {
         let data = "not a legit data representation".data(using: .ascii)!
 
-        XCTAssertThrowsError(try AccessControlList(data: data, isDirectory: false)) {
-            XCTAssertEqual($0 as? Errno, .invalidArgument)
-        }
+        #expect(#expect(throws: Errno.self) { try AccessControlList(data: data) } == .invalidArgument)
+    }
+#else
+    @Test
+    func testSerialization() throws {
+        let textRepresentation = """
+        user::rw-
+        user:root:rw-
+        group::r--
+        mask::rw-
+        other::r--
+
+        """
+
+        let acl = try AccessControlList(entries: [
+            AccessControlList.Entry(scope: .owner, permissions: [.read, .write]),
+            AccessControlList.Entry(scope: .user(User(id: 0)), permissions: [.read, .write]),
+            AccessControlList.Entry(scope: .groupOwner, permissions: [.read]),
+            AccessControlList.Entry(scope: .mask, permissions: [.read, .write]),
+            AccessControlList.Entry(scope: .other, permissions: [.read])
+        ])
+
+        #expect(try acl.textRepresentation == textRepresentation)
+        #expect(try AccessControlList(textRepresentation: textRepresentation) == acl)
+    }
+#endif
+
+    @Test
+    func testReadInvalidTextRepresentation() {
+        let text = "not a legit data representation"
+
+        #expect(#expect(throws: Errno.self) { try AccessControlList(textRepresentation: text) } == .invalidArgument)
     }
 
+#if canImport(Darwin) || os(FreeBSD)
+    @Test
     func testReadingACLs() throws {
         let tempURL = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
         defer { _ = try? FileManager.default.removeItem(at: tempURL) }
@@ -217,7 +329,7 @@ final class ACLTests: XCTestCase {
         try Data().write(to: tempURL)
 
         let rawACL = """
-        user:\(NSUserName()) deny delete_child,readextattr
+        user:\(ProcessInfo.processInfo.userName) deny delete_child,readextattr
         group:staff allow readsecurity,writeextattr,file_inherit
         """
         try self.setRawACL(acl: rawACL, at: tempURL)
@@ -231,25 +343,26 @@ final class ACLTests: XCTestCase {
 
                 for eachACL in acls {
                     try self.testACL(acl: eachACL)
-                    XCTAssertEqual(eachACL.count, 2)
+                    #expect(eachACL.count == 2)
 
                     let entry1 = eachACL[0]
                     let entry2 = eachACL[1]
 
-                    XCTAssertEqual(entry1.owner, .user(.current))
-                    XCTAssertEqual(entry1.rule, .deny)
-                    XCTAssertEqual(entry1.permissions, [.deleteChild, .readExtendedAttributes])
-                    XCTAssertEqual(entry1.flags, [])
+                    #expect(entry1.owner == .user(.current))
+                    #expect(entry1.rule == .deny)
+                    #expect(entry1.permissions == [.deleteChild, .readExtendedAttributes])
+                    #expect(entry1.flags == [])
 
-                    XCTAssertEqual(entry2.owner, try Group(name: "staff").map { .group($0) })
-                    XCTAssertEqual(entry2.rule, .allow)
-                    XCTAssertEqual(entry2.permissions, [.readSecurity, .writeExtendedAttributes])
-                    XCTAssertEqual(entry2.flags, .inheritToFiles)
+                    #expect(try entry2.owner == Group(name: "staff").map { .group($0) })
+                    #expect(entry2.rule == .allow)
+                    #expect(entry2.permissions == [.readSecurity, .writeExtendedAttributes])
+                    #expect(entry2.flags == .inheritToFiles)
                 }
             }
         }
     }
 
+    @Test
     func testWritingACLs() throws {
         let tempURL = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
         defer { _ = try? FileManager.default.removeItem(at: tempURL) }
@@ -275,7 +388,7 @@ final class ACLTests: XCTestCase {
                 acl.append(entry2)
                 
                 let expectedLines = [
-                    " 0: user:\(NSUserName()) allow readsecurity,limit_inherit",
+                    " 0: user:\(ProcessInfo.processInfo.userName) allow readsecurity,limit_inherit",
                     " 1: group:\(try Group.current.name ?? "") deny writeattr"
                 ]
                 
@@ -290,7 +403,7 @@ final class ACLTests: XCTestCase {
             }
         }
     }
-
+    
     private func setRawACL(acl: String, at url: URL) throws {
         let process = Process()
         let pipe = Pipe()
@@ -324,109 +437,253 @@ final class ACLTests: XCTestCase {
         guard let data = try handle.readToEnd(),
               let lines = String(data: data, encoding: .utf8)?.components(separatedBy: .newlines).filter({ !$0.isEmpty }),
               let firstLine = lines.first else {
-            XCTFail("Couldn't get /bin/ls output")
+            #expect(Bool(false), "Couldn't get /bin/ls output")
             return
         }
 
-        XCTAssertEqual(firstLine.components(separatedBy: .whitespaces).first?.last, "+")
-        XCTAssertEqual(Array(lines[1...]), expectedLines)
+        #expect(firstLine.components(separatedBy: .whitespaces).first?.last == "+")
+        #expect(Array(lines[1...]) == expectedLines)
+    }
+#else
+    @Test
+    func testReadingACLs() throws {
+        let tempURL = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        defer { _ = try? FileManager.default.removeItem(at: tempURL) }
+
+        try Data().write(to: tempURL)
+
+        let path = FilePath(tempURL.path)
+
+        try self.setRawACL(
+            """
+            u::rw-
+            u:0:r-x
+            g::r--
+            g:0:rwx
+            m::rwx
+            o::r--
+            """,
+            at: path
+        )
+
+        let fd = try FileDescriptor.open(path, .readOnly)
+        defer { _ = try? fd.close() }
+
+        let acls = try [
+            AccessControlList(at: path),
+            AccessControlList(at: fd)
+        ]
+
+        for eachACL in acls {
+            try self.testACL(acl: eachACL)
+            #expect(eachACL.count == 6)
+
+            #expect(eachACL.contains { $0.scope == .owner && $0.permissions == [.read, .write] })
+            #expect(eachACL.contains { $0.scope == .user(User(id: 0)) && $0.permissions == [.read, .execute] })
+            #expect(eachACL.contains { $0.scope == .groupOwner && $0.permissions == [.read] })
+            #expect(eachACL.contains { $0.scope == .group(Group(id: 0)) && $0.permissions == [.read, .write, .execute] })
+            #expect(eachACL.contains { $0.scope == .mask && $0.permissions == [.read, .write, .execute] })
+            #expect(eachACL.contains { $0.scope == .other && $0.permissions == [.read] })
+        }
     }
 
+    @Test
+    func testWritingACLs() throws {
+        let tempURL = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        defer { _ = try? FileManager.default.removeItem(at: tempURL) }
+
+        try Data().write(to: tempURL)
+
+        let acl = try AccessControlList(entries: [
+            AccessControlList.Entry(scope: .owner, permissions: [.read, .write]),
+            AccessControlList.Entry(scope: .user(User(id: 0)), permissions: [.read, .execute]),
+            AccessControlList.Entry(scope: .groupOwner, permissions: [.read]),
+            AccessControlList.Entry(scope: .mask, permissions: [.read, .write, .execute]),
+            AccessControlList.Entry(scope: .other, permissions: [.read])
+        ])
+
+        try acl.apply(to: FilePath(tempURL.path))
+
+        try self.doubleCheckWrittenACL(
+            at: FilePath(tempURL.path),
+            expect: """
+            user::rw-
+            user:root:r-x
+            group::r--
+            mask::rwx
+            other::r--
+
+            """
+        )
+    }
+
+    // Set an ACL on the file using libacl directly, so that reading is verified independently of our own writer.
+    private func setRawACL(_ text: String, at path: FilePath) throws {
+        let acl = try text.withCString(encodedAs: UTF8.self) { cString in
+            try callPOSIXFunction { acl_from_text(cString) }
+        }
+        defer { acl_free(UnsafeMutableRawPointer(acl)) }
+
+        try callPOSIXFunction(expect: .zero, path: path, isWrite: true) {
+            path.withPlatformString { acl_set_file($0, UInt32(bitPattern: ACL_TYPE_ACCESS), acl) }
+        }
+    }
+
+    // Read the file's ACL back using libacl directly, so that writing is verified independently of our own reader.
+    private func doubleCheckWrittenACL(at path: FilePath, expect expected: String) throws {
+        let acl = try callPOSIXFunction(path: path) {
+            path.withPlatformString { acl_get_file($0, acl_type_t(bitPattern: ACL_TYPE_ACCESS)) }
+        }
+        defer { acl_free(UnsafeMutableRawPointer(acl)) }
+
+        var len = 0
+        let desc = try callPOSIXFunction { acl_to_text(acl, &len) }
+        defer { acl_free(desc) }
+
+        #expect(String(cString: desc) == expected)
+    }
+#endif
+
+    @Test
     func testPermissionDescription() {
+#if canImport(Darwin) || os(FreeBSD)
         var perms: AccessControlList.Entry.Permissions = []
 
-        XCTAssertEqual(perms.description, "")
+        #expect(perms.description == "")
 
         perms.insert(.readData)
-        XCTAssertTrue(perms.description.contains("read"))
+        #expect(perms.description.contains("read"))
 
         perms.insert(.writeData)
-        XCTAssertTrue(perms.description.contains("write"))
+        #expect(perms.description.contains("write"))
 
         perms.insert(.appendData)
-        XCTAssertTrue(perms.description.contains("append"))
+        #expect(perms.description.contains("append"))
 
         perms.insert(.execute)
-        XCTAssertTrue(perms.description.contains("execute"))
+        #expect(perms.description.contains("execute"))
 
         perms = .listDirectory
-        XCTAssertTrue(perms.description.contains("list"))
+        #expect(perms.description.contains("list"))
 
         perms.insert(.addFile)
-        XCTAssertTrue(perms.description.contains("add_file"))
+        #expect(perms.description.contains("add_file"))
 
         perms.insert(.addSubdirectory)
-        XCTAssertTrue(perms.description.contains("add_subdirectory"))
+        #expect(perms.description.contains("add_subdirectory"))
 
         perms.insert(.search)
-        XCTAssertTrue(perms.description.contains("search"))
+        #expect(perms.description.contains("search"))
 
         perms.insert(.deleteChild)
-        XCTAssertTrue(perms.description.contains("delete_child"))
+        #expect(perms.description.contains("delete_child"))
 
         perms = .delete
-        XCTAssertEqual(perms.description, "delete")
+        #expect(perms.description == "delete")
 
         perms.insert(.readAttributes)
-        XCTAssertEqual(perms.description, "delete, readattr")
+        #expect(perms.description == "delete, readattr")
 
         perms.insert(.writeAttributes)
-        XCTAssertEqual(perms.description, "delete, readattr, writeattr")
+        #expect(perms.description == "delete, readattr, writeattr")
 
         perms.insert(.readExtendedAttributes)
-        XCTAssertEqual(perms.description, "delete, readattr, writeattr, readextattr")
+        #expect(perms.description == "delete, readattr, writeattr, readextattr")
 
         perms.insert(.writeExtendedAttributes)
-        XCTAssertEqual(perms.description, "delete, readattr, writeattr, readextattr, writeextattr")
+        #expect(perms.description == "delete, readattr, writeattr, readextattr, writeextattr")
 
         perms.insert(.readSecurity)
-        XCTAssertEqual(perms.description, "delete, readattr, writeattr, readextattr, writeextattr, readsecurity")
+        #expect(perms.description == "delete, readattr, writeattr, readextattr, writeextattr, readsecurity")
 
         perms.insert(.writeSecurity)
-        XCTAssertEqual(
-            perms.description,
-            "delete, readattr, writeattr, readextattr, writeextattr, readsecurity, writesecurity"
-        )
+        #expect(perms.description == "delete, readattr, writeattr, readextattr, writeextattr, readsecurity, writesecurity")
 
         perms.insert(.changeOwner)
-        XCTAssertEqual(
-            perms.description,
-            "delete, readattr, writeattr, readextattr, writeextattr, readsecurity, writesecurity, chown"
+        #expect(
+            perms.description == "delete, readattr, writeattr, readextattr, writeextattr, readsecurity, writesecurity, chown"
         )
+#else
+        var perms: AccessControlList.Entry.Permissions = []
+
+        #expect(perms.description == "")
+
+        perms.insert(.read)
+        #expect(perms.description.contains("read"))
+
+        perms.insert(.write)
+        #expect(perms.description.contains("write"))
+
+        perms.insert(.execute)
+        #expect(perms.description.contains("execute"))
+#endif
     }
 
+#if canImport(Darwin) || os(FreeBSD)
+    @Test
     func testFlagDescriptions() {
         var flags: AccessControlList.Entry.Flags = []
-        XCTAssertEqual(flags.description, "")
+        #expect(flags.description == "")
 
         flags.insert(.inheritToFiles)
-        XCTAssertEqual(flags.description, "file_inherit")
+        #expect(flags.description == "file_inherit")
 
         flags.insert(.inheritToDirectories)
-        XCTAssertEqual(flags.description, "file_inherit, directory_inherit")
+        #expect(flags.description == "file_inherit, directory_inherit")
 
         flags.insert(.limitInheritance)
-        XCTAssertEqual(flags.description, "file_inherit, directory_inherit, limit_inherit")
+        #expect(flags.description == "file_inherit, directory_inherit, limit_inherit")
 
         flags.insert(.onlyInherit)
-        XCTAssertEqual(flags.description, "file_inherit, directory_inherit, limit_inherit, only_inherit")
+        #expect(flags.description == "file_inherit, directory_inherit, limit_inherit, only_inherit")
     }
 
+    @Test
     func testEntryDescriptions() throws {
         var entry = AccessControlList.Entry()
 
-        XCTAssertEqual(entry.description, "user:\(NSUserName()) allow")
+        #expect(entry.description == "user:\(ProcessInfo.processInfo.userName) allow")
 
         entry.rule = .deny
-        XCTAssertEqual(entry.description, "user:\(NSUserName()) deny")
+        #expect(entry.description == "user:\(ProcessInfo.processInfo.userName) deny")
 
         entry.owner = .group(try Group(name: "staff")!)
-        XCTAssertEqual(entry.description, "group:staff deny")
+        #expect(entry.description == "group:staff deny")
 
         entry.owner = nil
-        XCTAssertEqual(entry.description, "(nil):(nil) deny")
+        #expect(entry.description == "(nil):(nil) deny")
 
         entry.owner = .user(User(id: .max))
-        XCTAssertEqual(entry.description, "user:(nil) deny")
+        #expect(entry.description == "user:(nil) deny")
     }
+#else
+    @Test
+    func testEntryDescriptions() {
+        var entry = AccessControlList.Entry()
+
+        #expect(entry.description == "user:\(getuid()) ")
+
+        entry.permissions = [.read, .write, .execute]
+        #expect(entry.description == "user:\(getuid()) read, write, execute")
+
+        entry.scope = .owner
+        #expect(entry.description == "owner read, write, execute")
+
+        entry.scope = .groupOwner
+        entry.permissions = [.read]
+        #expect(entry.description == "group owner read")
+
+        entry.scope = .group(Group(id: 20))
+        entry.permissions = [.read, .write]
+        #expect(entry.description == "group:20 read, write")
+
+        entry.scope = .mask
+        entry.permissions = [.write]
+        #expect(entry.description == "mask write")
+
+        entry.scope = .other
+        entry.permissions = []
+        #expect(entry.description == "other ")
+    }
+#endif
 }
