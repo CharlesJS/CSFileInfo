@@ -7,7 +7,7 @@
 
 #if canImport(Glibc)
 import Glibc
-import CShims
+import CSFileInfo_CShims
 
 extension FileInfo {
     public enum ObjectType: Codable, Equatable, Sendable {

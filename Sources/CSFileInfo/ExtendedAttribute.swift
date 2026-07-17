@@ -6,7 +6,7 @@
 //
 
 import CSErrors
-import CShims
+import CSFileInfo_CShims
 
 #if Foundation
 #if canImport(FoundationEssentials)

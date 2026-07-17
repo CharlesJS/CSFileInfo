@@ -1,6 +1,6 @@
 import CSErrors
 @testable import CSFileInfo
-import CShims
+import CSFileInfo_CShims
 import DataParser
 import Testing
 

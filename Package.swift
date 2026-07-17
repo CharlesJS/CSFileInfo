@@ -41,8 +41,7 @@ let package = Package(
     ],
     targets: [
         .systemLibrary(
-            name: "CShims",
-            pkgConfig: "libacl",
+            name: "CSFileInfo_CShims",
             providers: [
                 .apt(["libacl1-dev", "uuid-dev"]),
             ]
@@ -53,7 +52,7 @@ let package = Package(
                 "CSErrors",
                 "DataParser",
                 "HFSTypeConversion",
-                "CShims",
+                "CSFileInfo_CShims",
                 .product(name: "ExtrasBase64", package: "swift-extras-base64"),
             ],
             linkerSettings: [
@@ -62,7 +61,7 @@ let package = Package(
         ),
         .testTarget(
             name: "CSFileInfoTests",
-            dependencies: ["CSFileInfo", "CShims"],
+            dependencies: ["CSFileInfo", "CSFileInfo_CShims"],
             resources: [
                 .copy("fixtures")
             ]

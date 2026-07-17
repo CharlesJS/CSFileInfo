@@ -13,7 +13,7 @@ import FoundationEssentials
 import Foundation
 #endif
 
-import CShims
+import CSFileInfo_CShims
 import Testing
 
 struct DiskImageHelper {

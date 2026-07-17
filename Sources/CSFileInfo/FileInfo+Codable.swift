@@ -9,7 +9,7 @@ import CSErrors
 #if canImport(Darwin)
 import Darwin
 #elseif canImport(Glibc)
-import CShims
+import CSFileInfo_CShims
 import Glibc
 import SystemPackage
 #endif

@@ -8,7 +8,7 @@
 
 #if canImport(Glibc)
 import CSErrors
-import CShims
+import CSFileInfo_CShims
 import ExtrasBase64
 import Glibc
 import SystemPackage

@@ -7,7 +7,7 @@
 
 import CSErrors
 @testable import CSFileInfo
-import CShims
+import CSFileInfo_CShims
 import Testing
 
 #if canImport(FoundationEssentials)
