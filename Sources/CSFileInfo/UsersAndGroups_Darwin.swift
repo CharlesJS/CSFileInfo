@@ -7,7 +7,7 @@
 
 #if canImport(Darwin)
 import CSErrors
-import CShims
+import CSFileInfo_CShims
 
 #if canImport(SystemPackage)
 import SystemPackage

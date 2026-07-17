@@ -7,7 +7,7 @@
 
 
 #if canImport(Glibc)
-import CShims
+import CSFileInfo_CShims
 import CSErrors
 import DataParser
 import Glibc

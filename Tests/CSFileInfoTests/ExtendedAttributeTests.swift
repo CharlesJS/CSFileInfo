@@ -7,7 +7,7 @@
 
 import CSErrors
 @testable import CSFileInfo
-import CShims
+import CSFileInfo_CShims
 import Testing
 
 #if canImport(FoundationEssentials)
@@ -68,7 +68,7 @@ private func setxattr(_ path: String, _ name: String, _ value: String, _ size: I
     path.withCString { pathPtr in
         name.withCString { namePtr in
             value.withCString { valuePtr in
-                result = CShims.setxattr(pathPtr, namePtr, valuePtr, size_t(size), Int32(options))
+                result = CSFileInfo_CShims.setxattr(pathPtr, namePtr, valuePtr, size_t(size), Int32(options))
             }
         }
     }
@@ -81,7 +81,7 @@ private func fsetxattr(_ fd: Int32, _ name: String, _ value: String, _ size: Int
     var result: Int32 = 0
     name.withCString { namePtr in
         value.withCString { valuePtr in
-            result = CShims.fsetxattr(fd, namePtr, valuePtr, size_t(size), Int32(options))
+            result = CSFileInfo_CShims.fsetxattr(fd, namePtr, valuePtr, size_t(size), Int32(options))
         }
     }
     return Int(result)
@@ -153,7 +153,7 @@ private struct Scope: SuiteTrait, TestScoping {
             withDestinationURL: fileNoXattr
         )
 
-        let linkWithOneXattrFd = CShims.open(linkOneXattr.path, O_RDWR | symlinkOpenFlag)
+        let linkWithOneXattrFd = CSFileInfo_CShims.open(linkOneXattr.path, O_RDWR | symlinkOpenFlag)
         defer { close(linkWithOneXattrFd) }
         try callPOSIXFunction(expect: .zero) {
             fsetxattr(linkWithOneXattrFd, "user.foo", "lish", 4, 0, 0)
@@ -165,7 +165,7 @@ private struct Scope: SuiteTrait, TestScoping {
             withDestinationURL: dirNoXattr
         )
 
-        let linkWithMultipleXattrsFd = CShims.open(linkMultiXattr.path, O_RDWR | symlinkOpenFlag)
+        let linkWithMultipleXattrsFd = CSFileInfo_CShims.open(linkMultiXattr.path, O_RDWR | symlinkOpenFlag)
         defer { close(linkWithMultipleXattrsFd) }
         try callPOSIXFunction(expect: .zero) {
             fsetxattr(linkWithMultipleXattrsFd, "user.bar", "barian", 6, 0, 0)

@@ -7,7 +7,7 @@
 
 #if canImport(Glibc)
 import Glibc
-import CShims
+import CSFileInfo_CShims
 
 typealias attrgroup_t = UInt32
 

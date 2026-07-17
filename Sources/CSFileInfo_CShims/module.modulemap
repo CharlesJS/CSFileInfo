@@ -1,4 +1,4 @@
-module CShims {
+module CSFileInfo_CShims {
     umbrella header "cshims.h"
     export *
 }
