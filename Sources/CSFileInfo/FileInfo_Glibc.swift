@@ -37,9 +37,9 @@ public struct FileInfo: Sendable {
     public var finderInfo: FinderInfo? { nil }
 
     public var ownerID: uid_t?
-    public var ownerUUID: ContiguousArray<UInt8>? { nil }
+    public var ownerUUID: uuid_t? { nil }
     public var groupOwnerID: gid_t?
-    public var groupOwnerUUID: ContiguousArray<UInt8>? { nil }
+    public var groupOwnerUUID: uuid_t? { nil }
     public var permissionsMode: mode_t?
     public var protectionFlags: UInt32? { nil }
     public var accessControlList: AccessControlList?
@@ -84,7 +84,7 @@ public struct FileInfo: Sendable {
     public let volumeMountFlags: UInt64?
     public let volumeMountedDevice: String?
     public var volumeEncodingsUsed: CUnsignedLongLong? { nil }
-    public let volumeUUID: ContiguousArray<UInt8>?
+    public let volumeUUID: uuid_t?
     public let volumeFileSystemTypeName: String?
     public let volumeFileSystemSubtype: UInt32?
     public let volumeQuotaSize: off_t?
@@ -127,7 +127,7 @@ public struct FileInfo: Sendable {
         volumeName: String? = nil,
         volumeMountFlags: UInt64? = nil,
         volumeMountedDevice: String? = nil,
-        volumeUUID: ContiguousArray<UInt8>? = nil,
+        volumeUUID: uuid_t? = nil,
         volumeFileSystemTypeName: String? = nil,
         volumeFileSystemSubtype: UInt32? = nil,
         volumeQuotaSize: off_t? = nil,

@@ -137,7 +137,6 @@ extension FileInfo: Codable {
     private struct UUIDWrapper: Codable, Sendable {
         let uuidString: String
 
-#if canImport(Darwin)
         init(uuid u: uuid_t) throws {
             var uuid = u
 
@@ -160,34 +159,6 @@ extension FileInfo: Codable {
                 }
             }
         }
-#else
-        init(uuid u: ContiguousArray<UInt8>) throws {
-            let ptr = UnsafeMutablePointer<CChar>.allocate(capacity: 37)
-            defer { ptr.deallocate() }
-
-            u.withUnsafeBufferPointer { buf in
-                let uuidPtr = buf.baseAddress!
-                uuid_unparse(uuidPtr, ptr)
-            }
-
-            self.uuidString = String(cString: ptr)
-        }
-
-        var uuid: ContiguousArray<UInt8> {
-            get throws {
-                try self.uuidString.withCString { cStr in
-                    var uuid = ContiguousArray<UInt8>(repeating: 0, count: 16)
-                    try uuid.withUnsafeMutableBufferPointer { buf in
-                        let uuidPtr = buf.baseAddress!
-                        try callPOSIXFunction(expect: .zero) {
-                            uuid_parse(cStr, uuidPtr)
-                        }
-                    }
-                    return uuid
-                }
-            }
-        }
-#endif
     }
 
     public init(from decoder: Decoder) throws {

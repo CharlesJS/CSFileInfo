@@ -59,6 +59,10 @@ struct FileInfoEquatableTests {
 #endif
     }
 
+    private var volumeUUID: UUID {
+        UUID(uuidString: "6F864B71-9EC9-4A4C-9AEC-C5479953C13E")!
+    }
+
 #if canImport(Darwin)
     private var ownerUUID: UUID {
         var uuid = uuid_t(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
@@ -72,10 +76,6 @@ struct FileInfoEquatableTests {
         precondition(mbr_gid_to_uuid(502, &uuid) == 0)
 
         return UUID(uuid: uuid)
-    }
-
-    private var volumeUUID: UUID {
-        UUID(uuidString: "6F864B71-9EC9-4A4C-9AEC-C5479953C13E")!
     }
 
     private var volumeNativeCapabilities: FileInfo.VolumeCapabilities? {
@@ -96,18 +96,6 @@ struct FileInfoEquatableTests {
             ),
             implementedOnly: true
         )
-    }
-#else
-    private var volumeUUID: ContiguousArray<UInt8> {
-        ContiguousArray(repeating: 0, count: 16)
-    }
-
-    private var volumeNativeCapabilities: Any? {
-        nil
-    }
-
-    private var volumeAllowedCapabilities: Any? {
-        nil
     }
 #endif
 
@@ -232,7 +220,7 @@ struct FileInfoEquatableTests {
             volumeName: "barbar",
             volumeMountFlags: 576879,
             volumeMountedDevice: "bazbaz",
-            volumeUUID: volumeUUID,
+            volumeUUID: volumeUUID.uuid,
             volumeFileSystemTypeName: "quxqux",
             volumeFileSystemSubtype: 1234567890,
             volumeQuotaSize: 2345678901,
@@ -541,7 +529,7 @@ struct FileInfoEquatableTests {
           "volumeSize" : 67890123,
           "volumeSpaceUsed" : 90123456,
           "volumeUUID" : {
-            "uuidString" : "00000000-0000-0000-0000-000000000000"
+            "uuidString" : "6F864B71-9EC9-4A4C-9AEC-C5479953C13E"
           }
         }
         """

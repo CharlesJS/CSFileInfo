@@ -9,6 +9,7 @@
 import Darwin
 #elseif canImport(Glibc)
 import Glibc
+import CSFileInfo_CShims
 #endif
 
 extension FileInfo: Equatable {
@@ -17,12 +18,10 @@ extension FileInfo: Equatable {
             l?.tv_sec == r?.tv_sec && l?.tv_nsec == r?.tv_nsec
         }
 
-#if canImport(Darwin)
         func compareUUIDs(_ l: uuid_t?, _ r: uuid_t?) -> Bool {
             guard var l, var r else { return (l == nil) && (r == nil) }
             return uuid_compare(&l, &r) == 0
         }
-#endif
 
 #if canImport(Darwin)
         return rhs.filename == rhs.filename &&
@@ -118,9 +117,7 @@ extension FileInfo: Equatable {
         compareTimes(lhs.attributeModificationTime, rhs.attributeModificationTime) &&
         compareTimes(lhs.accessTime, rhs.accessTime) &&
         lhs.ownerID == rhs.ownerID &&
-        lhs.ownerUUID == rhs.ownerUUID &&
         lhs.groupOwnerID == rhs.groupOwnerID &&
-        lhs.groupOwnerUUID == rhs.groupOwnerUUID &&
         lhs.permissionsMode == rhs.permissionsMode &&
         lhs.accessControlList == rhs.accessControlList &&
         lhs.posixFlags == rhs.posixFlags &&
@@ -146,7 +143,7 @@ extension FileInfo: Equatable {
         lhs.volumeName == rhs.volumeName &&
         lhs.volumeMountFlags == rhs.volumeMountFlags &&
         lhs.volumeMountedDevice == rhs.volumeMountedDevice &&
-        lhs.volumeUUID == rhs.volumeUUID &&
+        compareUUIDs(lhs.volumeUUID, rhs.volumeUUID) &&
         lhs.volumeFileSystemTypeName == rhs.volumeFileSystemTypeName &&
         lhs.volumeFileSystemSubtype == rhs.volumeFileSystemSubtype &&
         lhs.volumeQuotaSize == rhs.volumeQuotaSize &&
