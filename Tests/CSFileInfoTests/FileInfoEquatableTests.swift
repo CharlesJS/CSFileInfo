@@ -59,6 +59,10 @@ struct FileInfoEquatableTests {
 #endif
     }
 
+    private var volumeUUID: UUID {
+        UUID(uuidString: "6F864B71-9EC9-4A4C-9AEC-C5479953C13E")!
+    }
+
 #if canImport(Darwin)
     private var ownerUUID: UUID {
         var uuid = uuid_t(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
@@ -72,10 +76,6 @@ struct FileInfoEquatableTests {
         precondition(mbr_gid_to_uuid(502, &uuid) == 0)
 
         return UUID(uuid: uuid)
-    }
-
-    private var volumeUUID: UUID {
-        UUID(uuidString: "6F864B71-9EC9-4A4C-9AEC-C5479953C13E")!
     }
 
     private var volumeNativeCapabilities: FileInfo.VolumeCapabilities? {
@@ -96,18 +96,6 @@ struct FileInfoEquatableTests {
             ),
             implementedOnly: true
         )
-    }
-#else
-    private var volumeUUID: ContiguousArray<UInt8> {
-        ContiguousArray(repeating: 0, count: 16)
-    }
-
-    private var volumeNativeCapabilities: Any? {
-        nil
-    }
-
-    private var volumeAllowedCapabilities: Any? {
-        nil
     }
 #endif
 
@@ -232,7 +220,7 @@ struct FileInfoEquatableTests {
             volumeName: "barbar",
             volumeMountFlags: 576879,
             volumeMountedDevice: "bazbaz",
-            volumeUUID: volumeUUID,
+            volumeUUID: volumeUUID.uuid,
             volumeFileSystemTypeName: "quxqux",
             volumeFileSystemSubtype: 1234567890,
             volumeQuotaSize: 2345678901,
@@ -245,13 +233,13 @@ struct FileInfoEquatableTests {
     func testEquality() throws {
         func testChange<T>(_ keyPath: WritableKeyPath<FileInfo, T?>, to value: T) {
             var info = self.referenceInfo
-            #expect(info == self.referenceInfo)
+            #expect(info == self.referenceInfo, "\(info.difference(from: self.referenceInfo))")
 
             info[keyPath: keyPath] = nil as T?
             #expect(info != self.referenceInfo)
 
             info[keyPath: keyPath] = self.referenceInfo[keyPath: keyPath]
-            #expect(info == self.referenceInfo)
+            #expect(info == self.referenceInfo, "\(info.difference(from: self.referenceInfo))")
 
             info[keyPath: keyPath] = value
             #expect(info != self.referenceInfo)
@@ -511,6 +499,16 @@ struct FileInfoEquatableTests {
             "tv_nsec" : 8901,
             "tv_sec" : 7890
           },
+          "mountRelativePath" : {
+            "_storage" : {
+              "nullTerminatedStorage" : [
+                98,
+                97,
+                122,
+                0
+              ]
+            }
+          },
           "objectTag" : {
             "unknown" : {
               "_0" : 0
@@ -522,6 +520,16 @@ struct FileInfoEquatableTests {
             }
           },
           "ownerID" : 501,
+          "path" : {
+            "_storage" : {
+              "nullTerminatedStorage" : [
+                98,
+                97,
+                114,
+                0
+              ]
+            }
+          },
           "permissionsMode" : 493,
           "posixFlags" : 14253,
           "realDeviceID" : 234,
@@ -532,6 +540,19 @@ struct FileInfoEquatableTests {
           "volumeMaxObjectCount" : 465768,
           "volumeMinAllocationSize" : 123456789,
           "volumeMountFlags" : 576879,
+          "volumeMountPoint" : {
+            "_storage" : {
+              "nullTerminatedStorage" : [
+                102,
+                111,
+                111,
+                102,
+                111,
+                111,
+                0
+              ]
+            }
+          },
           "volumeMountedDevice" : "bazbaz",
           "volumeName" : "barbar",
           "volumeObjectCount" : 132435,
@@ -541,7 +562,7 @@ struct FileInfoEquatableTests {
           "volumeSize" : 67890123,
           "volumeSpaceUsed" : 90123456,
           "volumeUUID" : {
-            "uuidString" : "00000000-0000-0000-0000-000000000000"
+            "uuidString" : "6F864B71-9EC9-4A4C-9AEC-C5479953C13E"
           }
         }
         """
@@ -551,11 +572,59 @@ struct FileInfoEquatableTests {
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
 
         let actualJSON = try String(data: encoder.encode(self.referenceInfo), encoding: .utf8)
-        #expect(actualJSON == referenceJSON)
-//        print("!!! getting decode")
-//        #expect(
-//            try JSONDecoder().decode(FileInfo.self, from: #require(referenceJSON.data(using: .utf8))) == self.referenceInfo
-//        )
-//        print("!!! got here")
+        #expect(actualJSON == referenceJSON, "\(self.compareStrings(actualJSON ?? "nil", referenceJSON)))")
+
+        let decoded = try JSONDecoder().decode(FileInfo.self, from: #require(referenceJSON.data(using: .utf8)))
+        #expect(decoded == self.referenceInfo, "\(decoded.difference(from: self.referenceInfo))")
+    }
+
+    private func compareStrings(_ lhs: String, _ rhs: String, line: UInt = #line) -> String {
+        var currentOffset = Int.min
+        var currentDiff = ""
+        var isInsert = true
+        var lastOffset = Int.min
+
+        var diffs: [(Bool, Int, Int, String)] = []
+
+        for eachDiff in lhs.difference(from: rhs).inferringMoves() {
+            switch eachDiff {
+            case .insert(offset: let offset, element: let element, associatedWith: _):
+                if isInsert, offset == lastOffset + 1 {
+                    currentDiff.append(element)
+                } else {
+                    if currentOffset != Int.min {
+                        diffs.append((isInsert, currentOffset, lastOffset, currentDiff))
+                    }
+
+                    currentOffset = offset
+                    currentDiff = String(element)
+                }
+
+                isInsert = true
+                lastOffset = offset
+            case .remove(offset: let offset, element: let element, associatedWith: _):
+                if !isInsert, offset == lastOffset + 1 {
+                    currentDiff.append(element)
+                } else {
+                    if currentOffset != Int.min {
+                        diffs.append((isInsert, currentOffset, lastOffset, currentDiff))
+                    }
+
+                    currentOffset = offset
+                    currentDiff = String(element)
+                }
+
+                isInsert = false
+                lastOffset = offset
+            }
+        }
+
+        if currentOffset != Int.min {
+            diffs.append((isInsert, currentOffset, lastOffset, currentDiff))
+        }
+
+        return diffs.map {
+            "\($0.0 ? "Insert" : "Remove"): '\($0.1)-\($0.2)': '\($0.3)'"
+        }.joined(separator: "\n")
     }
 }

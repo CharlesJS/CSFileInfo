@@ -137,7 +137,6 @@ extension FileInfo: Codable {
     private struct UUIDWrapper: Codable, Sendable {
         let uuidString: String
 
-#if canImport(Darwin)
         init(uuid u: uuid_t) throws {
             var uuid = u
 
@@ -160,34 +159,6 @@ extension FileInfo: Codable {
                 }
             }
         }
-#else
-        init(uuid u: ContiguousArray<UInt8>) throws {
-            let ptr = UnsafeMutablePointer<CChar>.allocate(capacity: 37)
-            defer { ptr.deallocate() }
-
-            u.withUnsafeBufferPointer { buf in
-                let uuidPtr = buf.baseAddress!
-                uuid_unparse(uuidPtr, ptr)
-            }
-
-            self.uuidString = String(cString: ptr)
-        }
-
-        var uuid: ContiguousArray<UInt8> {
-            get throws {
-                try self.uuidString.withCString { cStr in
-                    var uuid = ContiguousArray<UInt8>(repeating: 0, count: 16)
-                    try uuid.withUnsafeMutableBufferPointer { buf in
-                        let uuidPtr = buf.baseAddress!
-                        try callPOSIXFunction(expect: .zero) {
-                            uuid_parse(cStr, uuidPtr)
-                        }
-                    }
-                    return uuid
-                }
-            }
-        }
-#endif
     }
 
     public init(from decoder: Decoder) throws {
@@ -366,6 +337,8 @@ extension FileInfo: Codable {
         try container.encodeIfPresent(self.volumeMaxObjectCount, forKey: .volumeMaxObjectCount)
 #if canImport(Darwin)
         try container.encodeIfPresent(self.volumeMountPointPathString, forKey: .volumeMountPoint)
+#else
+        try container.encodeIfPresent(self.volumeMountPoint, forKey: .volumeMountPoint)
 #endif
         try container.encodeIfPresent(self.volumeName, forKey: .volumeName)
         try container.encodeIfPresent(self.volumeMountFlags, forKey: .volumeMountFlags)
@@ -389,6 +362,8 @@ extension FileInfo: Codable {
         try container.encodeIfPresent(self.finderInfo, forKey: .finderInfo)
         try container.encodeIfPresent(self._posixFlags, forKey: .posixFlags)
 #else
+        try container.encodeIfPresent(self.path, forKey: .path)
+        try container.encodeIfPresent(self.mountRelativePath, forKey: .mountRelativePath)
         try container.encodeIfPresent(self.posixFlags, forKey: .posixFlags)
 #endif
     }

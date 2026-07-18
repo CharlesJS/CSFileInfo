@@ -9,7 +9,14 @@
 import Darwin
 #else
 import Glibc
+import CSFileInfo_CShims
 private let NSEC_PER_SEC = 1_000_000_000
+#endif
+
+#if canImport(SystemPackage)
+import SystemPackage
+#else
+import System
 #endif
 
 #if Foundation
@@ -47,6 +54,16 @@ func fsidsEqual(_ lhs: fsid_t?, _ rhs: fsid_t?) -> Bool {
     lhs?.__val.0 == rhs?.__val.0 && lhs?.__val.1 == rhs?.__val.1
 #endif
 }
+
+func timesEqual(_ l: timespec?, _ r: timespec?) -> Bool {
+    l?.tv_sec == r?.tv_sec && l?.tv_nsec == r?.tv_nsec
+}
+
+func uuidsEqual(_ l: uuid_t?, _ r: uuid_t?) -> Bool {
+    guard var l, var r else { return (l == nil) && (r == nil) }
+    return uuid_compare(&l, &r) == 0
+}
+
 
 #if Foundation
 extension Date {

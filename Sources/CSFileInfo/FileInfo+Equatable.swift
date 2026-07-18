@@ -9,148 +9,196 @@
 import Darwin
 #elseif canImport(Glibc)
 import Glibc
+import CSFileInfo_CShims
+#endif
+
+#if canImport(SystemPackage)
+import SystemPackage
+#else
+import System
 #endif
 
 extension FileInfo: Equatable {
     public static func ==(lhs: FileInfo, rhs: FileInfo) -> Bool {
-        func compareTimes(_ l: timespec?, _ r: timespec?) -> Bool {
-            l?.tv_sec == r?.tv_sec && l?.tv_nsec == r?.tv_nsec
-        }
+        self.matchers.allSatisfy { $0(lhs, rhs) }
+    }
 
-#if canImport(Darwin)
-        func compareUUIDs(_ l: uuid_t?, _ r: uuid_t?) -> Bool {
-            guard var l, var r else { return (l == nil) && (r == nil) }
-            return uuid_compare(&l, &r) == 0
-        }
-#endif
+    public func difference(from otherInfo: Self) -> [PartialKeyPath<Self> : (Any, Any)] {
+        zip(Self.matchers, Self.keyPaths).reduce(into: [:]) {
+            let (matcher, keyPath) = $1
 
+            if !matcher(self, otherInfo) {
+                $0[keyPath] = (self[keyPath: keyPath], otherInfo[keyPath: keyPath])
+            }
+        }
+    }
+
+    private static let matchers: [@Sendable (Self, Self) -> Bool] = Self.keyPaths.map {
+        switch $0 {
 #if canImport(Darwin)
-        return rhs.filename == rhs.filename &&
-        lhs.pathString == rhs.pathString &&
-        lhs.mountRelativePathString == rhs.mountRelativePathString &&
-        lhs.noFirmLinkPathString == rhs.noFirmLinkPathString &&
-        lhs.deviceID == rhs.deviceID &&
-        lhs.realDeviceID == rhs.realDeviceID &&
-        fsidsEqual(lhs.fileSystemID, rhs.fileSystemID) &&
-        fsidsEqual(lhs.realFileSystemID, rhs.realFileSystemID) &&
-        lhs.objectType == rhs.objectType &&
-        lhs.objectTag == rhs.objectTag &&
-        lhs.inode == rhs.inode &&
-        lhs.parentID == rhs.parentID &&
-        lhs.linkID == rhs.linkID &&
-        lhs.persistentID == rhs.persistentID &&
-        lhs.cloneID == rhs.cloneID &&
-        lhs.script == rhs.script &&
-        compareTimes(lhs.creationTime, rhs.creationTime) &&
-        compareTimes(lhs.modificationTime, rhs.modificationTime) &&
-        compareTimes(lhs.attributeModificationTime, rhs.attributeModificationTime) &&
-        compareTimes(lhs.accessTime, rhs.accessTime) &&
-        compareTimes(lhs.backupTime, rhs.backupTime) &&
-        compareTimes(lhs.addedTime, rhs.addedTime) &&
-        lhs.finderInfo == rhs.finderInfo &&
-        lhs.ownerID == rhs.ownerID &&
-        compareUUIDs(lhs.ownerUUID, rhs.ownerUUID) &&
-        lhs.groupOwnerID == rhs.groupOwnerID &&
-        compareUUIDs(lhs.groupOwnerUUID, rhs.groupOwnerUUID) &&
-        lhs.permissionsMode == rhs.permissionsMode &&
-        lhs.accessControlList == rhs.accessControlList &&
-        lhs.posixFlags == rhs.posixFlags &&
-        lhs.protectionFlags == rhs.protectionFlags &&
-        lhs.extendedFlags == rhs.extendedFlags &&
-        lhs.generationCount == rhs.generationCount &&
-        lhs.recursiveGenerationCount == rhs.recursiveGenerationCount &&
-        lhs.documentID == rhs.documentID &&
-        lhs.userAccess == rhs.userAccess &&
-        lhs.privateSize == rhs.privateSize &&
-        lhs.fileLinkCount == rhs.fileLinkCount &&
-        lhs.fileTotalLogicalSize == rhs.fileTotalLogicalSize &&
-        lhs.fileTotalPhysicalSize == rhs.fileTotalPhysicalSize &&
-        lhs.fileOptimalBlockSize == rhs.fileOptimalBlockSize &&
-        lhs.fileAllocationClumpSize == rhs.fileAllocationClumpSize &&
-        lhs.fileDataForkLogicalSize == rhs.fileDataForkLogicalSize &&
-        lhs.fileDataForkPhysicalSize == rhs.fileDataForkPhysicalSize &&
-        lhs.fileResourceForkLogicalSize == rhs.fileResourceForkLogicalSize &&
-        lhs.fileResourceForkPhysicalSize == rhs.fileResourceForkPhysicalSize &&
-        lhs.fileDeviceType == rhs.fileDeviceType &&
-        lhs.directoryLinkCount == rhs.directoryLinkCount &&
-        lhs.directoryEntryCount == rhs.directoryEntryCount &&
-        lhs.directoryMountStatus == rhs.directoryMountStatus &&
-        lhs.directoryAllocationSize == rhs.directoryAllocationSize &&
-        lhs.directoryOptimalBlockSize == rhs.directoryOptimalBlockSize &&
-        lhs.directoryLogicalSize == rhs.directoryLogicalSize &&
-        lhs.volumeSignature == rhs.volumeSignature &&
-        lhs.volumeSize == rhs.volumeSize &&
-        lhs.volumeFreeSpace == rhs.volumeFreeSpace &&
-        lhs.volumeAvailableSpace == rhs.volumeAvailableSpace &&
-        lhs.volumeSpaceUsed == rhs.volumeSpaceUsed &&
-        lhs.volumeMinAllocationSize == rhs.volumeMinAllocationSize &&
-        lhs.volumeAllocationClumpSize == rhs.volumeAllocationClumpSize &&
-        lhs.volumeOptimalBlockSize == rhs.volumeOptimalBlockSize &&
-        lhs.volumeObjectCount == rhs.volumeObjectCount &&
-        lhs.volumeFileCount == rhs.volumeFileCount &&
-        lhs.volumeDirectoryCount == rhs.volumeDirectoryCount &&
-        lhs.volumeMaxObjectCount == rhs.volumeMaxObjectCount &&
-        lhs.volumeMountPointPathString == rhs.volumeMountPointPathString &&
-        lhs.volumeName == rhs.volumeName &&
-        lhs.volumeMountFlags == rhs.volumeMountFlags &&
-        lhs.volumeMountedDevice == rhs.volumeMountedDevice &&
-        lhs.volumeEncodingsUsed == rhs.volumeEncodingsUsed &&
-        compareUUIDs(lhs.volumeUUID, rhs.volumeUUID) &&
-        lhs.volumeFileSystemTypeName == rhs.volumeFileSystemTypeName &&
-        lhs.volumeFileSystemSubtype == rhs.volumeFileSystemSubtype &&
-        lhs.volumeQuotaSize == rhs.volumeQuotaSize &&
-        lhs.volumeReservedSize == rhs.volumeReservedSize &&
-        lhs.volumeNativeCapabilities == rhs.volumeNativeCapabilities &&
-        lhs.volumeAllowedCapabilities == rhs.volumeAllowedCapabilities &&
-        lhs.volumeNativelySupportedKeys == rhs.volumeNativelySupportedKeys &&
-        lhs.volumeAllowedKeys == rhs.volumeAllowedKeys
+        case let path as KeyPath<Self, FinderInfo?> & Sendable: { $0[keyPath: path] == $1[keyPath: path] }
+        case let path as KeyPath<Self, text_encoding_t?> & Sendable: { $0[keyPath: path] == $1[keyPath: path] }
+        case let path as KeyPath<Self, VolumeCapabilities?> & Sendable: { $0[keyPath: path] == $1[keyPath: path] }
 #else
-        return lhs.path == rhs.path &&
-        lhs.mountRelativePath == rhs.mountRelativePath &&
-        lhs.deviceID == rhs.deviceID &&
-        lhs.realDeviceID == rhs.realDeviceID &&
-        fsidsEqual(lhs.fileSystemID, rhs.fileSystemID) &&
-        lhs.objectType == rhs.objectType &&
-        lhs.objectTag == rhs.objectTag &&
-        lhs.inode == rhs.inode &&
-        compareTimes(lhs.creationTime, rhs.creationTime) &&
-        compareTimes(lhs.modificationTime, rhs.modificationTime) &&
-        compareTimes(lhs.attributeModificationTime, rhs.attributeModificationTime) &&
-        compareTimes(lhs.accessTime, rhs.accessTime) &&
-        lhs.ownerID == rhs.ownerID &&
-        lhs.ownerUUID == rhs.ownerUUID &&
-        lhs.groupOwnerID == rhs.groupOwnerID &&
-        lhs.groupOwnerUUID == rhs.groupOwnerUUID &&
-        lhs.permissionsMode == rhs.permissionsMode &&
-        lhs.accessControlList == rhs.accessControlList &&
-        lhs.posixFlags == rhs.posixFlags &&
-        lhs.extendedFlags == rhs.extendedFlags &&
-        lhs.fileLinkCount == rhs.fileLinkCount &&
-        lhs.fileOptimalBlockSize == rhs.fileOptimalBlockSize &&
-        lhs.fileAllocationClumpSize == rhs.fileAllocationClumpSize &&
-        lhs.fileDataForkLogicalSize == rhs.fileDataForkLogicalSize &&
-        lhs.fileDataForkPhysicalSize == rhs.fileDataForkPhysicalSize &&
-        lhs.fileDeviceType == rhs.fileDeviceType &&
-        lhs.directoryLinkCount == rhs.directoryLinkCount &&
-        lhs.directoryEntryCount == rhs.directoryEntryCount &&
-        lhs.directoryMountStatus == rhs.directoryMountStatus &&
-        lhs.volumeSize == rhs.volumeSize &&
-        lhs.volumeFreeSpace == rhs.volumeFreeSpace &&
-        lhs.volumeAvailableSpace == rhs.volumeAvailableSpace &&
-        lhs.volumeSpaceUsed == rhs.volumeSpaceUsed &&
-        lhs.volumeMinAllocationSize == rhs.volumeMinAllocationSize &&
-        lhs.volumeAllocationClumpSize == rhs.volumeAllocationClumpSize &&
-        lhs.volumeObjectCount == rhs.volumeObjectCount &&
-        lhs.volumeMaxObjectCount == rhs.volumeMaxObjectCount &&
-        lhs.volumeMountPoint == rhs.volumeMountPoint &&
-        lhs.volumeName == rhs.volumeName &&
-        lhs.volumeMountFlags == rhs.volumeMountFlags &&
-        lhs.volumeMountedDevice == rhs.volumeMountedDevice &&
-        lhs.volumeUUID == rhs.volumeUUID &&
-        lhs.volumeFileSystemTypeName == rhs.volumeFileSystemTypeName &&
-        lhs.volumeFileSystemSubtype == rhs.volumeFileSystemSubtype &&
-        lhs.volumeQuotaSize == rhs.volumeQuotaSize &&
-        lhs.volumeReservedSize == rhs.volumeReservedSize
+        case let path as KeyPath<Self, FilePath?> & Sendable: { $0[keyPath: path] == $1[keyPath: path] }
+#endif
+        case let path as KeyPath<Self, String?> & Sendable: { $0[keyPath: path] == $1[keyPath: path] }
+        case let path as KeyPath<Self, UInt?> & Sendable: { $0[keyPath: path] == $1[keyPath: path] }
+        case let path as KeyPath<Self, UInt32?> & Sendable: { $0[keyPath: path] == $1[keyPath: path] }
+        case let path as KeyPath<Self, UInt64?> & Sendable: { $0[keyPath: path] == $1[keyPath: path] }
+        case let path as KeyPath<Self, CUnsignedLongLong?> & Sendable: { $0[keyPath: path] == $1[keyPath: path] }
+        case let path as KeyPath<Self, dev_t?> & Sendable: { $0[keyPath: path] == $1[keyPath: path] }
+        case let path as KeyPath<Self, ino_t?> & Sendable: { $0[keyPath: path] == $1[keyPath: path] }
+        case let path as KeyPath<Self, off_t?> & Sendable: { $0[keyPath: path] == $1[keyPath: path] }
+        case let path as KeyPath<Self, uid_t?> & Sendable: { $0[keyPath: path] == $1[keyPath: path] }
+        case let path as KeyPath<Self, gid_t?> & Sendable: { $0[keyPath: path] == $1[keyPath: path] }
+        case let path as KeyPath<Self, mode_t?> & Sendable: { $0[keyPath: path] == $1[keyPath: path] }
+        case let path as KeyPath<Self, AccessControlList?> & Sendable: { $0[keyPath: path] == $1[keyPath: path] }
+        case let path as KeyPath<Self, ObjectTag?> & Sendable: { $0[keyPath: path] == $1[keyPath: path] }
+        case let path as KeyPath<Self, ObjectType?> & Sendable: { $0[keyPath: path] == $1[keyPath: path] }
+        case let path as KeyPath<Self, POSIXFlags?> & Sendable: { $0[keyPath: path] == $1[keyPath: path] }
+        case let path as KeyPath<Self, ExtendedFlags?> & Sendable: { $0[keyPath: path] == $1[keyPath: path] }
+        case let path as KeyPath<Self, MountStatus?> & Sendable: { $0[keyPath: path] == $1[keyPath: path] }
+        case let path as KeyPath<Self, UserAccess?> & Sendable: { $0[keyPath: path] == $1[keyPath: path] }
+        case let path as KeyPath<Self, Keys?> & Sendable: { $0[keyPath: path] == $1[keyPath: path] }
+
+        case let path as KeyPath<Self, fsid_t?> & Sendable: { fsidsEqual($0[keyPath: path], $1[keyPath: path]) }
+        case let path as KeyPath<Self, timespec?> & Sendable: { timesEqual($0[keyPath: path], $1[keyPath: path]) }
+        case let path as KeyPath<Self, uuid_t?> & Sendable: { uuidsEqual($0[keyPath: path], $1[keyPath: path]) }
+        default: fatalError("Programming Error: unhandled key path type \($0)")
+        }
+    }
+
+    private static var keyPaths: [PartialKeyPath<Self>] {
+#if canImport(Darwin)
+        [
+            \.filename,
+            \.pathString,
+            \.mountRelativePathString,
+            \.noFirmLinkPathString,
+            \.deviceID,
+            \.realDeviceID,
+            \.fileSystemID,
+            \.realFileSystemID,
+            \.objectType,
+            \.objectTag,
+            \.inode,
+            \.parentID,
+            \.linkID,
+            \.persistentID,
+            \.cloneID,
+            \.script,
+            \.creationTime,
+            \.modificationTime,
+            \.attributeModificationTime,
+            \.accessTime,
+            \.backupTime,
+            \.addedTime,
+            \.finderInfo,
+            \.ownerID,
+            \.ownerUUID,
+            \.groupOwnerID,
+            \.groupOwnerUUID,
+            \.permissionsMode,
+            \.accessControlList,
+            \.posixFlags,
+            \.protectionFlags,
+            \.extendedFlags,
+            \.generationCount,
+            \.recursiveGenerationCount,
+            \.documentID,
+            \.userAccess,
+            \.privateSize,
+            \.fileLinkCount,
+            \.fileTotalLogicalSize,
+            \.fileTotalPhysicalSize,
+            \.fileOptimalBlockSize,
+            \.fileAllocationClumpSize,
+            \.fileDataForkLogicalSize,
+            \.fileDataForkPhysicalSize,
+            \.fileResourceForkLogicalSize,
+            \.fileResourceForkPhysicalSize,
+            \.fileDeviceType,
+            \.directoryLinkCount,
+            \.directoryEntryCount,
+            \.directoryMountStatus,
+            \.directoryAllocationSize,
+            \.directoryOptimalBlockSize,
+            \.directoryLogicalSize,
+            \.volumeSignature,
+            \.volumeSize,
+            \.volumeFreeSpace,
+            \.volumeAvailableSpace,
+            \.volumeSpaceUsed,
+            \.volumeMinAllocationSize,
+            \.volumeAllocationClumpSize,
+            \.volumeOptimalBlockSize,
+            \.volumeObjectCount,
+            \.volumeFileCount,
+            \.volumeDirectoryCount,
+            \.volumeMaxObjectCount,
+            \.volumeMountPointPathString,
+            \.volumeName,
+            \.volumeMountFlags,
+            \.volumeMountedDevice,
+            \.volumeEncodingsUsed,
+            \.volumeUUID,
+            \.volumeFileSystemTypeName,
+            \.volumeFileSystemSubtype,
+            \.volumeQuotaSize,
+            \.volumeReservedSize,
+            \.volumeNativeCapabilities,
+            \.volumeAllowedCapabilities,
+            \.volumeNativelySupportedKeys,
+            \.volumeAllowedKeys
+        ]
+#else
+        [
+            \.path,
+            \.mountRelativePath,
+            \.deviceID,
+            \.realDeviceID,
+            \.fileSystemID,
+            \.objectType,
+            \.objectTag,
+            \.inode,
+            \.creationTime,
+            \.modificationTime,
+            \.attributeModificationTime,
+            \.accessTime,
+            \.ownerID,
+            \.groupOwnerID,
+            \.permissionsMode,
+            \.accessControlList,
+            \.posixFlags,
+            \.extendedFlags,
+            \.fileLinkCount,
+            \.fileOptimalBlockSize,
+            \.fileAllocationClumpSize,
+            \.fileDataForkLogicalSize,
+            \.fileDataForkPhysicalSize,
+            \.fileDeviceType,
+            \.directoryLinkCount,
+            \.directoryEntryCount,
+            \.directoryMountStatus,
+            \.volumeSize,
+            \.volumeFreeSpace,
+            \.volumeAvailableSpace,
+            \.volumeSpaceUsed,
+            \.volumeMinAllocationSize,
+            \.volumeAllocationClumpSize,
+            \.volumeObjectCount,
+            \.volumeMaxObjectCount,
+            \.volumeMountPoint,
+            \.volumeName,
+            \.volumeMountFlags,
+            \.volumeMountedDevice,
+            \.volumeUUID,
+            \.volumeFileSystemTypeName,
+            \.volumeFileSystemSubtype,
+            \.volumeQuotaSize,
+            \.volumeReservedSize
+        ]
 #endif
     }
 }
