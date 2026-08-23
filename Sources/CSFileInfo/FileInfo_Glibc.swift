@@ -266,7 +266,7 @@ public struct FileInfo: Sendable {
 
         if let statx, (statx.stx_mask & UInt32(STATX_TYPE)) != 0 {
             self.objectType = ObjectType(mode_t(statx.stx_mode))
-            self.permissionsMode = mode_t(statx.stx_mode)
+            self.permissionsMode = mode_t(statx.stx_mode) & 0o7777
         } else {
             self.objectType = nil
             self.permissionsMode = nil
