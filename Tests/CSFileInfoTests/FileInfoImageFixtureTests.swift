@@ -8,6 +8,7 @@
 #if canImport(Darwin)
 
 @testable import CSFileInfo
+import DiskImageHelper
 import Testing
 
 #if canImport(FoundationEssentials)
@@ -16,72 +17,38 @@ import FoundationEssentials
 import Foundation
 #endif
 
-struct ImageFixture: CustomTestStringConvertible, Sendable {
-    struct Info: Codable, Sendable {
-        struct File: Codable, Sendable {
-            let path: String
-            let fileInfo: FileInfo
-        }
+struct ImageInfo: DiskImageInfo {
+    private static let fixturesURL = Bundle.module.url(forResource: "images", withExtension: nil, subdirectory: "fixtures")!
 
-        let name: String
-
-        let supportsHardLinks: Bool
-        let supportsLinkIDs: Bool
-        let supportsTimeZones: Bool
-
-        let files: [File]
+    struct File: Codable, Sendable {
+        let path: String
+        let fileInfo: FileInfo
     }
 
-    struct MountTrait: SuiteTrait, TestScoping {
-        func provideScope(for test: Test, testCase: Test.Case?, performing f: @Sendable () async throws -> Void) async throws {
-            let dmgHelper = DiskImageHelper.shared
+    let name: String
+    var imageURL: URL { Self.fixturesURL.appending(path: "\(name).dmg") }
+    let fileSystem: DiskImageHelper.FileSystem
 
-            var mountPoints: [URL : URL] = [:]
+    let supportsHardLinks: Bool
+    let supportsLinkIDs: Bool
+    let supportsTimeZones: Bool
 
-            let devEntries = try ImageFixture.all.map { fixture in
-                let (mountPoint: mountPoint, devEntry: devEntry) = try dmgHelper.mountImage(url: fixture.url, readOnly: true)
+    let files: [File]
 
-                mountPoints[fixture.url] = mountPoint
+    static let fixtures: [Self] = try! {
+        let infoURL = Self.fixturesURL.appending(path: "images.plist")
+        let data = try Data(contentsOf: infoURL)
 
-                return devEntry
-            }
-
-            defer {
-                for eachDevEntry in devEntries {
-                    try! DiskImageHelper.shared.unmountImage(devEntry: eachDevEntry)
-                }
-            }
-
-            try await ImageFixture.$mountPoints.withValue(mountPoints) {
-                try await f()
-            }
-        }
-    }
-
-    let url: URL
-    let info: Info
-
-    var testDescription: String { self.url.lastPathComponent }
-
-    @TaskLocal static var mountPoints: [URL : URL] = [:]
-
-    static let all: [ImageFixture] = {
-        let bundle = Bundle.module
-        let infoURL = bundle.url(forResource: "images", withExtension: "plist", subdirectory: "fixtures/images")!
-
-        return try! PropertyListDecoder().decode([ImageFixture.Info].self, from: Data(contentsOf: infoURL)).map { info in
-            let name = info.name
-            let imageURL = bundle.url(forResource: name, withExtension: "dmg", subdirectory: "fixtures/images")!
-
-            return ImageFixture(url: imageURL, info: info)
-        }
+        return try Self.decode(data: data, decoder: PropertyListDecoder())
     }()
 }
 
-@Suite(ImageFixture.MountTrait())
+let withFixtures = MountTrait(imageInfo: ImageInfo.fixtures)
+
+@Suite(withFixtures)
 struct ImageFixtureTests {
-    @Test(arguments: ImageFixture.all)
-    func testImageFixtures(fixture: ImageFixture) async throws {
+    @Test(arguments: withFixtures.images)
+    func testImageFixtures(fixture: MountTrait<ImageInfo>.DiskImage) async throws {
         for version in [11, 12, 13] {
             try await emulateOSVersionAsync(version) {
                 try await Self.testImageFixture(fixture)
@@ -89,14 +56,14 @@ struct ImageFixtureTests {
         }
     }
 
-    private static func testImageFixture(_ fixture: ImageFixture) async throws {
+    private static func testImageFixture(_ fixture: MountTrait<ImageInfo>.DiskImage) async throws {
         var keys: FileInfo.Keys = [.allCommon, .allFile, .allDirectory]
         keys.remove([
             .fullPath, .noFirmLinkPath, .linkID, .parentID, .cloneID,
             .deviceID, .realDeviceID, .fileSystemID, .realFileSystemID
         ])
 
-        guard let mountPoint = ImageFixture.mountPoints[fixture.url] else { throw CocoaError(.fileReadNoSuchFile) }
+        let mountPoint = fixture.mountPoint
         let imageInfo = fixture.info
 
         for eachFile in imageInfo.files {
@@ -141,7 +108,7 @@ struct ImageFixtureTests {
         }
     }
 
-    private static func getExpectedInfo(file: ImageFixture.Info.File, imageInfo: ImageFixture.Info) -> FileInfo {
+    private static func getExpectedInfo(file: ImageInfo.File, imageInfo: ImageInfo) -> FileInfo {
         var info = file.fileInfo
 
         if !imageInfo.supportsTimeZones {

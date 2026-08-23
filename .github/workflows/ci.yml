@@ -9,3 +9,5 @@ on:
 jobs:
   run-ci:
     uses: CharlesJS/shared-workflows/.github/workflows/ci.yml@main
+    with: 
+      setup_filesystems: true

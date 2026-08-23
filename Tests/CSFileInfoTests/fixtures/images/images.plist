@@ -5,6 +5,8 @@
 	<dict>
 		<key>name</key>
 		<string>apfs</string>
+		<key>fileSystem</key>
+		<string>apfs</string>
 		<key>supportsHardLinks</key>
 		<true/>
 		<key>supportsLinkIDs</key>
@@ -928,6 +930,8 @@
 	<dict>
 		<key>name</key>
 		<string>exfat</string>
+		<key>fileSystem</key>
+		<string>exfat</string>
 		<key>supportsHardLinks</key>
 		<false/>
 		<key>supportsLinkIDs</key>
@@ -1283,6 +1287,8 @@
 	<dict>
 		<key>name</key>
 		<string>fat32</string>
+		<key>fileSystem</key>
+		<string>fat32</string>
 		<key>supportsHardLinks</key>
 		<false/>
 		<key>supportsLinkIDs</key>
@@ -1637,6 +1643,8 @@
 	</dict>
 	<dict>
 		<key>name</key>
+		<string>hfs+</string>
+		<key>fileSystem</key>
 		<string>hfs+</string>
 		<key>supportsHardLinks</key>
 		<true/>
@@ -2393,6 +2401,8 @@
 	</dict>
 	<dict>
 		<key>name</key>
+		<string>udf</string>
+		<key>fileSystem</key>
 		<string>udf</string>
 		<key>supportsHardLinks</key>
 		<true/>

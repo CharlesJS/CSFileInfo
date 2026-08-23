@@ -1,5 +1,5 @@
 {
-  "originHash" : "b7d067de44abc86423a9e9b7ed6f2808068e2f32f6981da8b83e28d96358bc03",
+  "originHash" : "d7bf2e61711cd5e23cf8baba58b39b9216787b7cb076ac534418728f0b3698be",
   "pins" : [
     {
       "identity" : "cserrors",
@@ -29,6 +29,15 @@
       }
     },
     {
+      "identity" : "lzfse-swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/CharlesJS/lzfse-swift",
+      "state" : {
+        "revision" : "01e33efe2b7b112f1a31a90d7735452623d5bab7",
+        "version" : "1.0.0"
+      }
+    },
+    {
       "identity" : "swift-extras-base64",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/swift-extras/swift-extras-base64.git",
@@ -42,8 +51,17 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-system",
       "state" : {
-        "revision" : "7502b711c92a17741fa625d722b0ccbd595d8ed1",
-        "version" : "1.7.2"
+        "revision" : "50688cacbd41d547e9eb9f7a213542340b7c442b",
+        "version" : "1.7.5"
+      }
+    },
+    {
+      "identity" : "test-helpers",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/CharlesJS/test-helpers.git",
+      "state" : {
+        "revision" : "3d41d8074e3cb1d234a2c2244a2b58e4d7c30aa6",
+        "version" : "0.1.2"
       }
     }
   ],

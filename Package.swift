@@ -37,6 +37,7 @@ let package = Package(
             ]
         ),
         .package(url: "https://github.com/CharlesJS/HFSTypeConversion", from: "0.1.4"),
+        .package(url: "https://github.com/CharlesJS/test-helpers.git", from: "0.1.2"),
         .package(url: "https://github.com/swift-extras/swift-extras-base64.git", from: "0.7.0"),
     ],
     targets: [
@@ -61,7 +62,11 @@ let package = Package(
         ),
         .testTarget(
             name: "CSFileInfoTests",
-            dependencies: ["CSFileInfo", "CSFileInfo_CShims"],
+            dependencies: [
+                "CSFileInfo",
+                "CSFileInfo_CShims",
+                .product(name: "DiskImageHelper", package: "test-helpers"),
+            ],
             resources: [
                 .copy("fixtures")
             ]

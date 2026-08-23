@@ -8,6 +8,7 @@
 import CSErrors
 @testable import CSFileInfo
 import CSFileInfo_CShims
+import DiskImageHelper
 import Testing
 
 #if canImport(FoundationEssentials)
@@ -356,15 +357,15 @@ struct FileInfoReadWriteTests {
     @Test
     func testWriteVolumeName() throws {
 #if canImport(Darwin)
-        let imageURL = FileManager.default.temporaryDirectory.appendingPathComponent(
-            UUID().uuidString
-        ).appendingPathExtension("dmg")
-
-        defer { _ = try? FileManager.default.removeItem(at: imageURL) }
-
         let dmgHelper = DiskImageHelper.shared
 
-        try dmgHelper.createImage(url: imageURL, size: 10 * 1024)
+        let imageURL = try dmgHelper.createDiskImage(
+            at: FileManager.default.temporaryDirectory.appending(path: UUID().uuidString).appendingPathExtension("dmg"),
+            size: 10 * 1024,
+            fileSystem: .apfs
+        )
+
+        defer { _ = try? FileManager.default.removeItem(at: imageURL) }
 
         var appliers: [(FileInfo, URL) throws -> Void] = [
             { try $0.apply(to: FilePath($1.path)) },
@@ -377,7 +378,7 @@ struct FileInfoReadWriteTests {
 
         for applier in appliers {
             let (mountPoint: mountPoint, devEntry: devEntry) = try dmgHelper.mountImage(url: imageURL, readOnly: false)
-            defer { try? dmgHelper.unmountImage(devEntry: devEntry) }
+            defer { try? dmgHelper.unmountImage(mountPoint: mountPoint, devEntry: devEntry) }
 
             var info = try FileInfo(atPath: mountPoint.path, keys: .volumeName)
 
@@ -399,9 +400,9 @@ struct FileInfoReadWriteTests {
             )
 
             // Remount to force info to refresh
-            try dmgHelper.unmountImage(devEntry: devEntry)
+            try dmgHelper.unmountImage(mountPoint: mountPoint, devEntry: devEntry)
             let (newMountPoint, newDevEntry) = try dmgHelper.mountImage(url: imageURL, readOnly: false)
-            defer { try? dmgHelper.unmountImage(devEntry: newDevEntry) }
+            defer { try? dmgHelper.unmountImage(mountPoint: mountPoint, devEntry: newDevEntry) }
 
             #expect(newMountPoint != mountPoint)
 
