@@ -12,11 +12,7 @@ import CSErrors
 import CSFileInfo_CShims
 import Testing
 
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
 import Foundation
-#endif
 
 #if canImport(SystemPackage)
 import SystemPackage
@@ -31,6 +27,7 @@ struct FileFixture: CustomTestStringConvertible, Sendable {
     var keys: FileInfo.Keys {
         [.allCommon, self.isDirectory ? .allDirectory : .allFile]
     }
+
     var testDescription: String { self.name }
 
     func testFileInfo(closure: (FileInfo) throws -> Void) throws {
@@ -51,7 +48,7 @@ struct FileFixture: CustomTestStringConvertible, Sendable {
                 if self.keys.contains(.fullPath) {
                     let hint: URL.DirectoryHint = self.isDirectory ? .isDirectory : .notDirectory
 
-                    #expect(eachInfo.path.flatMap { URL(filePath: $0, directoryHint: hint)?.standardizedFileURL } == url)
+                    #expect(eachInfo.path.map { URL(filePath: $0.string, directoryHint: hint).standardizedFileURL } == url)
                     #expect(eachInfo.pathString.map { URL(filePath: $0, directoryHint: hint).standardizedFileURL } == url)
                 }
 

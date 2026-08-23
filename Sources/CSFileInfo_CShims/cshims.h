@@ -27,6 +27,7 @@
 #include <sys/sysmacros.h>
 #include <sys/vfs.h>
 #include <sys/xattr.h>
+#include <time.h>
 #include <unistd.h>
 #include <uuid/uuid.h>
 
@@ -55,5 +56,7 @@ __attribute__((swift_name("statx(_:_:_:_:_:)")))
 static inline int swift_statx(int dirfd, const char *path, int flags, unsigned int mask, struct statx *buf) {
     return syscall(SYS_statx, dirfd, path, flags, mask, buf);
 }
+
+char *strptime(const char *restrict buf, const char *restrict format, struct tm *restrict tm);
 
 #endif

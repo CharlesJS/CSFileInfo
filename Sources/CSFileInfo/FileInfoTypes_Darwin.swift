@@ -45,34 +45,34 @@ extension FileInfo {
 
     public enum ObjectTag: Codable, Equatable, Sendable {
         case none
-        case ufs
-        case nfs
-        case mfs
-        case msdosfs
-        case lfs
-        case lofs
-        case fdesc
-        case portal
-        case null
-        case umap
-        case kernfs
-        case procfs
-        case afs
-        case isofs
-        case mockfs
-        case hfs
-        case zfs
-        case devfs
-        case webdav
-        case udf
         case afp
+        case afs
+        case apfs
+        case bindfs
         case cdda
         case cifs
-        case other
-        case apfs
+        case devfs
+        case fdesc
+        case hfs
+        case isofs
+        case kernfs
+        case lfs
         case lockerfs
-        case bindfs
-        case unknown(fsobj_tag_t)
+        case lofs
+        case mfs
+        case mockfs
+        case msdosfs
+        case nfs
+        case null
+        case other
+        case portal
+        case procfs
+        case udf
+        case ufs
+        case umap
+        case webdav
+        case zfs
+        case unknown(String)
 
         internal init(_ tag: fsobj_tag_t) {
             switch vtagtype(rawValue: tag) {
@@ -133,7 +133,7 @@ extension FileInfo {
             case VT_BINDFS:
                 self = .bindfs
             default:
-                self = .unknown(tag)
+                self = .unknown("fsobj_tag_t \(tag)")
             }
         }
     }

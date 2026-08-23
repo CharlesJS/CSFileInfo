@@ -73,7 +73,11 @@ public struct FileInfo: Sendable {
     public var groupOwnerID: gid_t?
     public var groupOwnerUUID: uuid_t?
     public var permissionsMode: mode_t?
-    public var accessControlList: AccessControlList?
+    public var accessControlList: AccessControlList? {
+        get { self.nfs4AccessControlList }
+        set { self.nfs4AccessControlList = newValue }
+    }
+    public var nfs4AccessControlList: NFS4AccessControlList?
 
     internal var _posixFlags: POSIXFlags?
     public var posixFlags: POSIXFlags? {
@@ -131,6 +135,7 @@ public struct FileInfo: Sendable {
     public let volumeMountedDevice: String?
     public let volumeEncodingsUsed: CUnsignedLongLong?
     public let volumeUUID: uuid_t?
+    public let volumeFileSystemType: UInt32?
     public let volumeFileSystemTypeName: String?
     public let volumeFileSystemSubtype: UInt32?
     public let volumeQuotaSize: off_t?
@@ -189,7 +194,7 @@ public struct FileInfo: Sendable {
         ownerID: uid_t? = nil,
         groupOwnerID: gid_t? = nil,
         permissionsMode: mode_t? = nil,
-        accessControlList: AccessControlList? = nil,
+        nfs4AccessControlList: NFS4AccessControlList? = nil,
         posixFlags: POSIXFlags? = nil,
         extendedFlags: ExtendedFlags? = nil,
         generationCount: UInt32? = nil,
@@ -237,6 +242,7 @@ public struct FileInfo: Sendable {
         groupOwnerUUID: uuid_t? = nil,
         volumeUUID: uuid_t? = nil,
         volumeFileSystemTypeName: String? = nil,
+        volumeFileSystemType: UInt32? = nil,
         volumeFileSystemSubtype: UInt32? = nil,
         volumeQuotaSize: off_t? = nil,
         volumeReservedSize: off_t? = nil,
@@ -269,7 +275,7 @@ public struct FileInfo: Sendable {
         self.ownerID = ownerID
         self.groupOwnerID = groupOwnerID
         self.permissionsMode = permissionsMode
-        self.accessControlList = accessControlList
+        self.nfs4AccessControlList = nfs4AccessControlList
         self._posixFlags = posixFlags
         self.extendedFlags = extendedFlags
         self.generationCount = generationCount
@@ -317,6 +323,7 @@ public struct FileInfo: Sendable {
         self.groupOwnerUUID = groupOwnerUUID
         self.volumeUUID = volumeUUID
         self.volumeFileSystemTypeName = volumeFileSystemTypeName
+        self.volumeFileSystemType = volumeFileSystemType
         self.volumeFileSystemSubtype = volumeFileSystemSubtype
         self.volumeQuotaSize = volumeQuotaSize
         self.volumeReservedSize = volumeReservedSize
@@ -573,8 +580,11 @@ public struct FileInfo: Sendable {
         self.userAccess = try readAttr(group: attrs.commonattr, tag: ATTR_CMN_USERACCESS, type: UInt32.self).map {
             UserAccess(rawValue: $0)
         }
-        self.accessControlList = try readVariableLengthData(group: attrs.commonattr, tag: ATTR_CMN_EXTENDED_SECURITY).map {
-            try AccessControlList(data: $0, nativeRepresentation: true)
+        self.nfs4AccessControlList = try readVariableLengthData(
+            group: attrs.commonattr,
+            tag: ATTR_CMN_EXTENDED_SECURITY
+        ).map {
+            try NFS4AccessControlList(data: $0, nativeRepresentation: true)
         }
         self.ownerUUID = try readAttr(group: attrs.commonattr, tag: ATTR_CMN_UUID, type: guid_t.self).map(\.g_guid)
         self.groupOwnerUUID = try readAttr(group: attrs.commonattr, tag: ATTR_CMN_GRPUUID, type: guid_t.self).map(\.g_guid)
@@ -584,7 +594,6 @@ public struct FileInfo: Sendable {
         self.addedTime = try readTime(group: attrs.commonattr, tag: ATTR_CMN_ADDEDTIME)
         self.protectionFlags = try readAttr(group: attrs.commonattr, tag: ATTR_CMN_DATA_PROTECT_FLAGS, type: UInt32.self)
 
-        _ = try readAttr(group: attrs.volattr, tag: ATTR_VOL_FSTYPE, type: UInt32.self)
         self.volumeSignature = try readAttr(group: attrs.volattr, tag: ATTR_VOL_SIGNATURE, type: UInt32.self)
         self.volumeSize = try readAttr(group: attrs.volattr, tag: ATTR_VOL_SIZE, type: off_t.self)
         self.volumeFreeSpace = try readAttr(group: attrs.volattr, tag: ATTR_VOL_SPACEFREE, type: off_t.self)
@@ -626,6 +635,7 @@ public struct FileInfo: Sendable {
             self.volumeAllowedCapabilities = nil
         }
         self.volumeUUID = try readAttr(group: attrs.volattr, tag: ATTR_VOL_UUID, type: uuid_t.self)
+        self.volumeFileSystemType = try readAttr(group: attrs.volattr, tag: ATTR_VOL_FSTYPE, type: UInt32.self)
         self.volumeFileSystemTypeName = try readString(group: attrs.volattr, tag: ATTR_VOL_FSTYPENAME)
         self.volumeFileSystemSubtype = try readAttr(group: attrs.volattr, tag: ATTR_VOL_FSSUBTYPE, type: UInt32.self)
         self.volumeQuotaSize = try readAttr(group: attrs.volattr, tag: ATTR_VOL_QUOTA_SIZE, type: off_t.self)
@@ -803,7 +813,7 @@ public struct FileInfo: Sendable {
         writeAttr(self.permissionsMode.map { UInt32($0) }, group: &attrs.commonattr, tag: ATTR_CMN_ACCESSMASK)
         writeAttr(self.posixFlags?.rawValue, group: &attrs.commonattr, tag: ATTR_CMN_FLAGS)
         try writeVariableLengthData(
-            self.accessControlList?.dataRepresentation(native: true),
+            self.nfs4AccessControlList?.dataRepresentation(native: true),
             group: &attrs.commonattr,
             tag: ATTR_CMN_EXTENDED_SECURITY
         )
