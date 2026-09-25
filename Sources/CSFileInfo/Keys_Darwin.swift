@@ -86,6 +86,7 @@ extension FileInfo {
         public static let volumeMountedDevice = Self.vol(ATTR_VOL_MOUNTEDDEVICE)
         public static let volumeEncodingsUsed = Self.vol(ATTR_VOL_ENCODINGSUSED)
         public static let volumeUUID = Self.vol(ATTR_VOL_UUID)
+        public static let volumeFileSystemType = Self.common(ATTR_VOL_FSTYPE)
         public static let volumeFileSystemTypeName = Self.vol(ATTR_VOL_FSTYPENAME)
         public static let volumeFileSystemSubtype = Self.vol(ATTR_VOL_FSSUBTYPE)
         public static let volumeQuotaSize = Self.vol(ATTR_VOL_QUOTA_SIZE)

@@ -39,8 +39,10 @@ extension FileInfo: Equatable {
         case let path as KeyPath<Self, FinderInfo?> & Sendable: { $0[keyPath: path] == $1[keyPath: path] }
         case let path as KeyPath<Self, text_encoding_t?> & Sendable: { $0[keyPath: path] == $1[keyPath: path] }
         case let path as KeyPath<Self, VolumeCapabilities?> & Sendable: { $0[keyPath: path] == $1[keyPath: path] }
+        case let path as KeyPath<Self, NFS4AccessControlList?> & Sendable: { $0[keyPath: path] == $1[keyPath: path] }
 #else
         case let path as KeyPath<Self, FilePath?> & Sendable: { $0[keyPath: path] == $1[keyPath: path] }
+        case let path as KeyPath<Self, POSIXAccessControlList?> & Sendable: { $0[keyPath: path] == $1[keyPath: path] }
 #endif
         case let path as KeyPath<Self, String?> & Sendable: { $0[keyPath: path] == $1[keyPath: path] }
         case let path as KeyPath<Self, UInt?> & Sendable: { $0[keyPath: path] == $1[keyPath: path] }
@@ -53,8 +55,11 @@ extension FileInfo: Equatable {
         case let path as KeyPath<Self, uid_t?> & Sendable: { $0[keyPath: path] == $1[keyPath: path] }
         case let path as KeyPath<Self, gid_t?> & Sendable: { $0[keyPath: path] == $1[keyPath: path] }
         case let path as KeyPath<Self, mode_t?> & Sendable: { $0[keyPath: path] == $1[keyPath: path] }
-        case let path as KeyPath<Self, AccessControlList?> & Sendable: { $0[keyPath: path] == $1[keyPath: path] }
+#if canImport(Darwin)
         case let path as KeyPath<Self, ObjectTag?> & Sendable: { $0[keyPath: path] == $1[keyPath: path] }
+#else
+        case let path as KeyPath<Self, FileSystemType?> & Sendable: { $0[keyPath: path] == $1[keyPath: path] }
+#endif
         case let path as KeyPath<Self, ObjectType?> & Sendable: { $0[keyPath: path] == $1[keyPath: path] }
         case let path as KeyPath<Self, POSIXFlags?> & Sendable: { $0[keyPath: path] == $1[keyPath: path] }
         case let path as KeyPath<Self, ExtendedFlags?> & Sendable: { $0[keyPath: path] == $1[keyPath: path] }
@@ -100,7 +105,7 @@ extension FileInfo: Equatable {
             \.groupOwnerID,
             \.groupOwnerUUID,
             \.permissionsMode,
-            \.accessControlList,
+            \.nfs4AccessControlList,
             \.posixFlags,
             \.protectionFlags,
             \.extendedFlags,
@@ -143,6 +148,7 @@ extension FileInfo: Equatable {
             \.volumeMountedDevice,
             \.volumeEncodingsUsed,
             \.volumeUUID,
+            \.volumeFileSystemType,
             \.volumeFileSystemTypeName,
             \.volumeFileSystemSubtype,
             \.volumeQuotaSize,
@@ -155,12 +161,10 @@ extension FileInfo: Equatable {
 #else
         [
             \.path,
-            \.mountRelativePath,
             \.deviceID,
             \.realDeviceID,
             \.fileSystemID,
             \.objectType,
-            \.objectTag,
             \.inode,
             \.creationTime,
             \.modificationTime,
@@ -169,7 +173,7 @@ extension FileInfo: Equatable {
             \.ownerID,
             \.groupOwnerID,
             \.permissionsMode,
-            \.accessControlList,
+            \.posixAccessControlList,
             \.posixFlags,
             \.extendedFlags,
             \.fileLinkCount,
@@ -194,6 +198,7 @@ extension FileInfo: Equatable {
             \.volumeMountFlags,
             \.volumeMountedDevice,
             \.volumeUUID,
+            \.volumeFileSystemType,
             \.volumeFileSystemTypeName,
             \.volumeFileSystemSubtype,
             \.volumeQuotaSize,

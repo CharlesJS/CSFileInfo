@@ -93,7 +93,7 @@
 					</dict>
 					<key>mountRelativePath</key>
 					<string>/Directory</string>
-					<key>objectTag</key>
+					<key>fileSystemType</key>
 					<dict>
 						<key>apfs</key>
 						<dict/>
@@ -150,9 +150,9 @@
 					<key>attributeModificationTime</key>
 					<dict>
 						<key>tv_nsec</key>
-						<integer>303472477</integer>
+						<integer>781743142</integer>
 						<key>tv_sec</key>
-						<integer>1684984757</integer>
+						<integer>1789619471</integer>
 					</dict>
 					<key>backupTime</key>
 					<dict>
@@ -212,7 +212,7 @@
 					</dict>
 					<key>mountRelativePath</key>
 					<string>/Directory/PlainFile</string>
-					<key>objectTag</key>
+					<key>fileSystemType</key>
 					<dict>
 						<key>apfs</key>
 						<dict/>
@@ -365,7 +365,7 @@
 					</dict>
 					<key>mountRelativePath</key>
 					<string>/Directory/SillyBalls</string>
-					<key>objectTag</key>
+					<key>fileSystemType</key>
 					<dict>
 						<key>apfs</key>
 						<dict/>
@@ -412,7 +412,7 @@
 						<key>tv_sec</key>
 						<integer>1684968926</integer>
 					</dict>
-					<key>acl</key>
+					<key>nfs4AccessControlList</key>
 					<dict>
 						<key>aclData</key>
 						<string>ASzBbQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAB5vruKJ8RL9KE/9UzRNDmGAAAAgQAACACrze+rze+rze+rze8AAAAUAAAAQgAAAQA=</string>
@@ -491,7 +491,7 @@
 					</dict>
 					<key>mountRelativePath</key>
 					<string>/Directory/FileWithACL</string>
-					<key>objectTag</key>
+					<key>fileSystemType</key>
 					<dict>
 						<key>apfs</key>
 						<dict/>
@@ -548,9 +548,9 @@
 					<key>attributeModificationTime</key>
 					<dict>
 						<key>tv_nsec</key>
-						<integer>210949494</integer>
+						<integer>477117341</integer>
 						<key>tv_sec</key>
-						<integer>1684980767</integer>
+						<integer>1789687904</integer>
 					</dict>
 					<key>backupTime</key>
 					<dict>
@@ -610,7 +610,7 @@
 					</dict>
 					<key>mountRelativePath</key>
 					<string>/Directory/SparseFile</string>
-					<key>objectTag</key>
+					<key>fileSystemType</key>
 					<dict>
 						<key>apfs</key>
 						<dict/>
@@ -771,7 +771,7 @@
 					</dict>
 					<key>mountRelativePath</key>
 					<string>/DirectoryWithAttrs</string>
-					<key>objectTag</key>
+					<key>fileSystemType</key>
 					<dict>
 						<key>apfs</key>
 						<dict/>
@@ -828,9 +828,9 @@
 					<key>attributeModificationTime</key>
 					<dict>
 						<key>tv_nsec</key>
-						<integer>303472477</integer>
+						<integer>781743142</integer>
 						<key>tv_sec</key>
-						<integer>1684984757</integer>
+						<integer>1789619471</integer>
 					</dict>
 					<key>backupTime</key>
 					<dict>
@@ -890,7 +890,7 @@
 					</dict>
 					<key>mountRelativePath</key>
 					<string>/DirectoryWithAttrs/hardlink</string>
-					<key>objectTag</key>
+					<key>fileSystemType</key>
 					<dict>
 						<key>apfs</key>
 						<dict/>
@@ -987,9 +987,9 @@
 					</dict>
 					<key>mountRelativePath</key>
 					<string>/Directory</string>
-					<key>objectTag</key>
+					<key>fileSystemType</key>
 					<dict>
-						<key>none</key>
+						<key>exfat</key>
 						<dict/>
 					</dict>
 					<key>objectType</key>
@@ -1052,7 +1052,7 @@
 					</dict>
 					<key>mountRelativePath</key>
 					<string>/Directory/PlainFile</string>
-					<key>objectTag</key>
+					<key>fileSystemType</key>
 					<dict>
 						<key>none</key>
 						<dict/>
@@ -1151,7 +1151,7 @@
 					</dict>
 					<key>mountRelativePath</key>
 					<string>/Directory/SillyBalls</string>
-					<key>objectTag</key>
+					<key>fileSystemType</key>
 					<dict>
 						<key>none</key>
 						<dict/>
@@ -1264,7 +1264,7 @@
 					</dict>
 					<key>mountRelativePath</key>
 					<string>/DirectoryWithAttrs</string>
-					<key>objectTag</key>
+					<key>fileSystemType</key>
 					<dict>
 						<key>none</key>
 						<dict/>
@@ -1344,7 +1344,7 @@
 					</dict>
 					<key>mountRelativePath</key>
 					<string>/Directory</string>
-					<key>objectTag</key>
+					<key>fileSystemType</key>
 					<dict>
 						<key>none</key>
 						<dict/>
@@ -1409,7 +1409,7 @@
 					</dict>
 					<key>mountRelativePath</key>
 					<string>/Directory/PlainFile</string>
-					<key>objectTag</key>
+					<key>fileSystemType</key>
 					<dict>
 						<key>none</key>
 						<dict/>
@@ -1508,7 +1508,7 @@
 					</dict>
 					<key>mountRelativePath</key>
 					<string>/Directory/SillyBalls</string>
-					<key>objectTag</key>
+					<key>fileSystemType</key>
 					<dict>
 						<key>none</key>
 						<dict/>
@@ -1621,7 +1621,7 @@
 					</dict>
 					<key>mountRelativePath</key>
 					<string>/DirectoryWithAttrs</string>
-					<key>objectTag</key>
+					<key>fileSystemType</key>
 					<dict>
 						<key>none</key>
 						<dict/>
@@ -1730,7 +1730,7 @@
 					</dict>
 					<key>mountRelativePath</key>
 					<string>/Directory</string>
-					<key>objectTag</key>
+					<key>fileSystemType</key>
 					<dict>
 						<key>hfs</key>
 						<dict/>
@@ -1841,7 +1841,7 @@
 					</dict>
 					<key>mountRelativePath</key>
 					<string>/Directory/PlainFile</string>
-					<key>objectTag</key>
+					<key>fileSystemType</key>
 					<dict>
 						<key>hfs</key>
 						<dict/>
@@ -1986,7 +1986,7 @@
 					</dict>
 					<key>mountRelativePath</key>
 					<string>/Directory/SillyBalls</string>
-					<key>objectTag</key>
+					<key>fileSystemType</key>
 					<dict>
 						<key>hfs</key>
 						<dict/>
@@ -2027,7 +2027,7 @@
 						<key>tv_sec</key>
 						<integer>1684983744</integer>
 					</dict>
-					<key>acl</key>
+					<key>nfs4AccessControlList</key>
 					<dict>
 						<key>aclData</key>
 						<string>ASzBbQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAB5vruKJ8RL9KE/9UzRNDmGAAAAgQAACACrze+rze+rze+rze8AAAAUAAAAQgAAAQA=</string>
@@ -2104,7 +2104,7 @@
 					</dict>
 					<key>mountRelativePath</key>
 					<string>/Directory/FileWithACL</string>
-					<key>objectTag</key>
+					<key>fileSystemType</key>
 					<dict>
 						<key>hfs</key>
 						<dict/>
@@ -2257,7 +2257,7 @@
 					</dict>
 					<key>mountRelativePath</key>
 					<string>/DirectoryWithAttrs</string>
-					<key>objectTag</key>
+					<key>fileSystemType</key>
 					<dict>
 						<key>hfs</key>
 						<dict/>
@@ -2368,7 +2368,7 @@
 					</dict>
 					<key>mountRelativePath</key>
 					<string>/DirectoryWithAttrs/hardlink</string>
-					<key>objectTag</key>
+					<key>fileSystemType</key>
 					<dict>
 						<key>hfs</key>
 						<dict/>
@@ -2465,7 +2465,7 @@
 					</dict>
 					<key>mountRelativePath</key>
 					<string>/Directory</string>
-					<key>objectTag</key>
+					<key>fileSystemType</key>
 					<dict>
 						<key>udf</key>
 						<dict/>
@@ -2555,7 +2555,7 @@
 					</dict>
 					<key>mountRelativePath</key>
 					<string>/Directory/PlainFile</string>
-					<key>objectTag</key>
+					<key>fileSystemType</key>
 					<dict>
 						<key>udf</key>
 						<dict/>
@@ -2679,7 +2679,7 @@
 					</dict>
 					<key>mountRelativePath</key>
 					<string>/Directory/SillyBalls</string>
-					<key>objectTag</key>
+					<key>fileSystemType</key>
 					<dict>
 						<key>udf</key>
 						<dict/>
@@ -2804,7 +2804,7 @@
 					</dict>
 					<key>mountRelativePath</key>
 					<string>/DirectoryWithAttrs</string>
-					<key>objectTag</key>
+					<key>fileSystemType</key>
 					<dict>
 						<key>udf</key>
 						<dict/>
@@ -2894,7 +2894,7 @@
 					</dict>
 					<key>mountRelativePath</key>
 					<string>/Directory/PlainFile</string>
-					<key>objectTag</key>
+					<key>fileSystemType</key>
 					<dict>
 						<key>udf</key>
 						<dict/>

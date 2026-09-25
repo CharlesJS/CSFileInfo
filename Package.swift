@@ -37,7 +37,7 @@ let package = Package(
             ]
         ),
         .package(url: "https://github.com/CharlesJS/HFSTypeConversion", from: "0.1.4"),
-        .package(url: "https://github.com/CharlesJS/test-helpers.git", from: "0.1.2"),
+        .package(url: "https://github.com/CharlesJS/test-helpers.git", from: "0.2.0"),
         .package(url: "https://github.com/swift-extras/swift-extras-base64.git", from: "0.7.0"),
     ],
     targets: [

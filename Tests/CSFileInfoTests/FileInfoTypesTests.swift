@@ -42,7 +42,7 @@ struct FileInfoTypesTests {
     }
 
     @Test
-    func testObjectTagInitialization() {
+    func testFileSystemTypeInitialization() {
 #if canImport(Darwin)
         #expect(FileInfo.ObjectTag(VT_NON.rawValue) == .none)
         #expect(FileInfo.ObjectTag(VT_UFS.rawValue) == .ufs)

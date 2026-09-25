@@ -35,12 +35,11 @@ extension FileInfo {
 
         public static let filename = Self.other(1 << 0)
         public static let fullPath = Self.other(1 << 1) // readlinkat(AT_FDCWD, "/proc/self/fd/N", buf, size) for an open fd. For a path, realpath(3).
-        public static let mountRelativePath = Self.statx(STATX_TYPE, 1 << 0)
         public static let deviceID = Self.statx(0, 1 << 0)
         public static let realDeviceID = Self.statx(0, 1 << 1)
         public static let fileSystemID = Self.statx(0, 1 << 2)
-        public static let objectType = Self.statx(STATX_TYPE, 1 << 1)
-        public static let objectTag = Self.statfs(1 << 0) // f_type
+        public static let objectType = Self.statx(STATX_TYPE, 1 << 0)
+        public static let fileSystemType = Self.statfs(1 << 0) // f_type
         public static let inode = Self.statx(STATX_INO, 1 << 0)
         public static let creationTime = Self.statx(STATX_BTIME, 1)
         public static let modificationTime = Self.statx(STATX_MTIME, 1)
@@ -60,7 +59,7 @@ extension FileInfo {
         public static let fileDataForkPhysicalSize = Self.statx(STATX_BLOCKS, 1 << 1)
         public static let fileDeviceType = Self.statx(0, 1 << 7)
         public static let directoryLinkCount = Self.statx(STATX_NLINK, 1 << 1)
-        public static let directoryEntryCount = Self.statx(STATX_TYPE, 1 << 3) // opendir(3) + readdir(3) loop counting entries excluding . and .., or use getdents64(2) directly. Note: stx_nlink - 2 gives the count of     subdirectories only, not total entries
+        public static let directoryEntryCount = Self.statx(STATX_TYPE, 1 << 1) // opendir(3) + readdir(3) loop counting entries excluding . and .., or use getdents64(2) directly. Note: stx_nlink - 2 gives the count of     subdirectories only, not total entries
         public static let directoryMountStatus = Self.statx(0, 1 << 8)
         public static let directoryOptimalBlockSize = Self.statx(0, 1 << 9)
         public static let volumeName = Self.other(1 << 3) //  ioctl(fd, FS_IOC_GETFSLABEL, buf) on Linux 5.12+ (ext4, xfs,  btrfs, f2fs); or blkid -s LABEL -o value /dev/sdX.
@@ -102,6 +101,10 @@ extension FileInfo {
         public let rawValue: RawValue
         public init(rawValue: RawValue) { self.rawValue = rawValue }
         public init() { self.rawValue = .init(statx: [:], statfs: 0, other: 0) }
+
+        internal var statxMask: UInt32 {
+            self.rawValue.statx.reduce(0) { $0 | UInt32($1.key) }
+        }
 
         public mutating func formUnion(_ other: Self) {
             self = Self(rawValue: RawValue(

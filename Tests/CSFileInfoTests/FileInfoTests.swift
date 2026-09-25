@@ -235,17 +235,17 @@ struct FileInfoReadOnlyTests {
 
 @Suite(.serialized)
 struct FileInfoReadWriteTests {
+#if canImport(Darwin)
     @Test(.serialized, arguments: osVersions)
     func testOSVersions(version: Int) throws {
         try emulateOSVersion(version) {
             try self.testWriteSecurityInfo()
             try self.testWriteVolumeName()
 
-#if canImport(Darwin)
             try self.testWriteFinderInfo()
-#endif
         }
     }
+#endif
 
 #if canImport(Darwin)
     @Test
@@ -377,7 +377,7 @@ struct FileInfoReadWriteTests {
 #endif
 
         for applier in appliers {
-            let (mountPoint: mountPoint, devEntry: devEntry) = try dmgHelper.mountImage(url: imageURL, readOnly: false)
+            let (mountPoint, _, devEntry) = try dmgHelper.mountImage(url: imageURL, readOnly: false)
             defer { try? dmgHelper.unmountImage(mountPoint: mountPoint, devEntry: devEntry) }
 
             var info = try FileInfo(atPath: mountPoint.path, keys: .volumeName)
@@ -401,7 +401,7 @@ struct FileInfoReadWriteTests {
 
             // Remount to force info to refresh
             try dmgHelper.unmountImage(mountPoint: mountPoint, devEntry: devEntry)
-            let (newMountPoint, newDevEntry) = try dmgHelper.mountImage(url: imageURL, readOnly: false)
+            let (newMountPoint, _, newDevEntry) = try dmgHelper.mountImage(url: imageURL, readOnly: false)
             defer { try? dmgHelper.unmountImage(mountPoint: mountPoint, devEntry: newDevEntry) }
 
             #expect(newMountPoint != mountPoint)

@@ -1,5 +1,5 @@
 {
-  "originHash" : "d7bf2e61711cd5e23cf8baba58b39b9216787b7cb076ac534418728f0b3698be",
+  "originHash" : "8dcbf4c3f620347da74f3b63ab2df4823979ebad5c9dc02280a7aef376dfcfad",
   "pins" : [
     {
       "identity" : "cserrors",
@@ -51,8 +51,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-system",
       "state" : {
-        "revision" : "50688cacbd41d547e9eb9f7a213542340b7c442b",
-        "version" : "1.7.5"
+        "revision" : "869129b7bf4ecc57b97d0193ad29690ca2134750",
+        "version" : "1.8.1"
       }
     },
     {
@@ -60,8 +60,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/CharlesJS/test-helpers.git",
       "state" : {
-        "revision" : "3d41d8074e3cb1d234a2c2244a2b58e4d7c30aa6",
-        "version" : "0.1.2"
+        "revision" : "e75a61464bcd338c97dfa56ba739538d5f06fc67",
+        "version" : "0.2.0"
       }
     }
   ],
