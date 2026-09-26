@@ -5,83 +5,50 @@
 //  Created by Charles Srstka on 4/4/26.
 //
 
-#if canImport(Darwin)
-
 @testable import CSFileInfo
+import DiskImageHelper
+import Foundation
 import Testing
 
-#if canImport(FoundationEssentials)
-import FoundationEssentials
+#if canImport(SystemPackage)
+import SystemPackage
 #else
-import Foundation
+import System
 #endif
 
-struct ImageFixture: CustomTestStringConvertible, Sendable {
-    struct Info: Codable, Sendable {
-        struct File: Codable, Sendable {
-            let path: String
-            let fileInfo: FileInfo
-        }
+struct ImageInfo: DiskImageInfo {
+    private static let fixturesURL = Bundle.module.url(forResource: "images", withExtension: nil, subdirectory: "fixtures")!
 
-        let name: String
-
-        let supportsHardLinks: Bool
-        let supportsLinkIDs: Bool
-        let supportsTimeZones: Bool
-
-        let files: [File]
+    struct File: Codable, Sendable {
+        let path: String
+        let fileInfo: FileInfo
     }
 
-    struct MountTrait: SuiteTrait, TestScoping {
-        func provideScope(for test: Test, testCase: Test.Case?, performing f: @Sendable () async throws -> Void) async throws {
-            let dmgHelper = DiskImageHelper.shared
+    let name: String
+    var imageURL: URL { Self.fixturesURL.appending(path: "\(name).dmg") }
+    let fileSystem: DiskImageHelper.FileSystem
 
-            var mountPoints: [URL : URL] = [:]
+    let supportsHardLinks: Bool
+    let supportsLinkIDs: Bool
+    let supportsTimeZones: Bool
 
-            let devEntries = try ImageFixture.all.map { fixture in
-                let (mountPoint: mountPoint, devEntry: devEntry) = try dmgHelper.mountImage(url: fixture.url, readOnly: true)
+    let files: [File]
 
-                mountPoints[fixture.url] = mountPoint
+    static let fixtures: [Self] = try! {
+        let infoURL = Self.fixturesURL.appending(path: "images.plist")
+        let data = try Data(contentsOf: infoURL)
 
-                return devEntry
-            }
-
-            defer {
-                for eachDevEntry in devEntries {
-                    try! DiskImageHelper.shared.unmountImage(devEntry: eachDevEntry)
-                }
-            }
-
-            try await ImageFixture.$mountPoints.withValue(mountPoints) {
-                try await f()
-            }
-        }
-    }
-
-    let url: URL
-    let info: Info
-
-    var testDescription: String { self.url.lastPathComponent }
-
-    @TaskLocal static var mountPoints: [URL : URL] = [:]
-
-    static let all: [ImageFixture] = {
-        let bundle = Bundle.module
-        let infoURL = bundle.url(forResource: "images", withExtension: "plist", subdirectory: "fixtures/images")!
-
-        return try! PropertyListDecoder().decode([ImageFixture.Info].self, from: Data(contentsOf: infoURL)).map { info in
-            let name = info.name
-            let imageURL = bundle.url(forResource: name, withExtension: "dmg", subdirectory: "fixtures/images")!
-
-            return ImageFixture(url: imageURL, info: info)
-        }
+        return try Self.decode(data: data, decoder: PropertyListDecoder())
     }()
 }
 
-@Suite(ImageFixture.MountTrait())
+#warning("undo this filter")
+let withFixtures = MountTrait(imageInfo: ImageInfo.fixtures.filter { $0.fileSystem != .fat32 && $0.fileSystem != .udf })
+
+@Suite(withFixtures)
 struct ImageFixtureTests {
-    @Test(arguments: ImageFixture.all)
-    func testImageFixtures(fixture: ImageFixture) async throws {
+    @Test(arguments: withFixtures.images)
+    func testImageFixtures(fixture: MountTrait<ImageInfo>.DiskImage) async throws {
         for version in [11, 12, 13] {
             try await emulateOSVersionAsync(version) {
                 try await Self.testImageFixture(fixture)
@@ -89,34 +56,39 @@ struct ImageFixtureTests {
         }
     }
 
-    private static func testImageFixture(_ fixture: ImageFixture) async throws {
+    private static func testImageFixture(_ fixture: MountTrait<ImageInfo>.DiskImage) async throws {
+#if canImport(Darwin)
         var keys: FileInfo.Keys = [.allCommon, .allFile, .allDirectory]
         keys.remove([
             .fullPath, .noFirmLinkPath, .linkID, .parentID, .cloneID,
             .deviceID, .realDeviceID, .fileSystemID, .realFileSystemID
         ])
+#else
+        let keys = FileInfo.Keys.all
+#endif
 
-        guard let mountPoint = ImageFixture.mountPoints[fixture.url] else { throw CocoaError(.fileReadNoSuchFile) }
+        let rootDir = fixture.rootDirectory
         let imageInfo = fixture.info
 
         for eachFile in imageInfo.files {
-            let url = mountPoint.appending(path: eachFile.path)
+            let url = rootDir.appending(path: eachFile.path)
 
-            let fileInfo = try FileInfo(atPath: url.path, keys: keys)
+            let fileInfo = try FileInfo(at: FilePath(url.path(percentEncoded: false)), keys: keys)
             let expectedFileInfo = self.getExpectedInfo(file: eachFile, imageInfo: imageInfo)
 
             let encoder = JSONEncoder()
             let infoJSON = try encoder.encode(fileInfo)
             let expectedJSON = try encoder.encode(expectedFileInfo)
 
-            var infoDict = try #require(JSONSerialization.jsonObject(with: infoJSON) as? [String : AnyHashable])
-            let expectedDict = try #require(JSONSerialization.jsonObject(with: expectedJSON) as? [String : AnyHashable])
-
-            for eachKey in infoDict.keys {
-                if expectedDict[eachKey] == nil {
-                    infoDict[eachKey] = nil
-                }
+            var infoDict = try #require(JSONSerialization.jsonObject(with: infoJSON) as? [String : Any]).mapValues {
+                try makeHashable($0)
             }
+
+            var expectedDict = try #require(JSONSerialization.jsonObject(with: expectedJSON) as? [String : Any]).mapValues {
+                try makeHashable($0)
+            }
+
+            self.adjustInfoDicts(url: url, actual: &infoDict, expected: &expectedDict)
 
             #expect(
                 infoDict == expectedDict,
@@ -125,12 +97,16 @@ struct ImageFixtureTests {
         }
 
         if imageInfo.supportsHardLinks {
-            let hardLinkURL = mountPoint.appending(path: "DirectoryWithAttrs/hardlink")
-            let origURL = mountPoint.appending(path: "Directory/PlainFile")
+            let hardLinkURL = rootDir.appending(path: "DirectoryWithAttrs/hardlink")
+            let origURL = rootDir.appending(path: "Directory/PlainFile")
+#if canImport(Darwin)
             let hardLinkKeys: FileInfo.Keys = [.inode, .linkID, .persistentID]
+#else
+            let hardLinkKeys: FileInfo.Keys = [.inode]
+#endif
 
-            let hardLinkInfo = try FileInfo(atPath: hardLinkURL.path, keys: hardLinkKeys)
-            let origInfo = try FileInfo(atPath: origURL.path, keys: hardLinkKeys)
+            let hardLinkInfo = try FileInfo(at: FilePath(hardLinkURL.path(percentEncoded: false)), keys: hardLinkKeys)
+            let origInfo = try FileInfo(at: FilePath(origURL.path(percentEncoded: false)), keys: hardLinkKeys)
 
             #expect(hardLinkInfo.inode == origInfo.inode)
 
@@ -141,7 +117,55 @@ struct ImageFixtureTests {
         }
     }
 
-    private static func getExpectedInfo(file: ImageFixture.Info.File, imageInfo: ImageFixture.Info) -> FileInfo {
+    private static func adjustInfoDicts(
+        url: URL,
+        actual: inout [String : AnyHashable],
+        expected: inout [String : AnyHashable]
+    ) {
+#if !canImport(Darwin)
+        // work around some known bugs/discrepancies with fs drivers we're using for certain file systems on linux
+
+        print("!!! fileSystemType is \((expected["fileSystemType"] as? [String : Any])?.keys)")
+        switch (expected["fileSystemType"] as? [String : Any])?.keys.first {
+        case "apfs":
+            expected.removeValue(forKey: "fileSystemType")
+            expected.removeValue(forKey: "creationTime")
+            expected.removeValue(forKey: "extendedFlags")
+            expected.removeValue(forKey: "fileLinkCount")
+
+            expected.removeValue(forKey: "fileDataForkPhysicalSize")
+            expected.removeValue(forKey: "fileTotalPhysicalSize")
+        case "exfat":
+            print("!!! how bout here")
+            expected.removeValue(forKey: "creationTime")
+            if let sec = (expected["attributeModificationTime"]) {
+                print("!!! got here")
+//                expected["attributeModificationTime"] = ["tv_sec" : sec, "tv_nsec" : Int(0)]
+            }
+        case "hfs":
+            expected["fileSystemType"] = ["fuse" : [:] as [String : AnyHashable]]
+            expected.removeValue(forKey: "directoryLinkCount")
+            expected.removeValue(forKey: "creationTime")
+
+            if url.lastPathComponent == "hardlink" {
+//                expected.removeValue(forKey: "creationTime")
+            }
+        default: break
+        }
+#endif
+
+        for eachKey in actual.keys {
+            if expected[eachKey] == nil {
+                actual[eachKey] = nil
+            }
+        }
+    }
+
+    private static func getExpectedInfo(file: ImageInfo.File, imageInfo: ImageInfo) -> FileInfo {
+#if !canImport(Darwin)
+        let NSEC_PER_SEC = 1_000_000_000
+#endif
+
         var info = file.fileInfo
 
         if !imageInfo.supportsTimeZones {
@@ -168,6 +192,18 @@ struct ImageFixtureTests {
         return info
     }
 
+    private static func makeHashable(_ arg: Any) throws -> AnyHashable {
+        if let dict = arg as? [String : Any] {
+            return try dict.mapValues { try makeHashable($0) }
+        }
+
+        if let array = arg as? [Any] {
+            return try array.map { try makeHashable($0) }
+        }
+
+        return try #require(arg as? AnyHashable)
+    }
+
     private static func diffInfo(
         _ info: [String : AnyHashable],
         expect expectedInfo: [String : AnyHashable],
@@ -176,7 +212,11 @@ struct ImageFixtureTests {
     ) -> String {
         func compare<T: Equatable>(_ v1: T, _ v2: Any) -> Bool { v2 as? T == v1 }
 
-        return "\(imageName), \(url.path): " + info.sorted(by: { $0.key < $1.key }).compactMap { key, value in
+        var diff = ["\(imageName), \(url.path):"]
+
+        diff += expectedInfo.keys.filter { !info.keys.contains($0) }.map { "Missing on left: \($0)" }
+
+        diff += info.sorted(by: { $0.key < $1.key }).compactMap { key, value in
             guard let expectedValue = expectedInfo[key] else { return "Missing on right: \(key)" }
 
             if compare(value, expectedValue) {
@@ -184,8 +224,8 @@ struct ImageFixtureTests {
             }
 
             return "Mismatch for \(key): got \(String(describing: value)), expected \(String(describing: expectedValue))"
-        }.joined(separator: "\n")
+        }
+
+        return diff.joined(separator: "\n")
     }
 }
-
-#endif

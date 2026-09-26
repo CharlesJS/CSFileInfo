@@ -44,7 +44,8 @@ extension FileInfo: Codable {
         case groupOwnerID
         case groupOwnerUUID
         case permissionsMode
-        case acl
+        case nfs4AccessControlList
+        case posixAccessControlList
         case posixFlags
         case protectionFlags
         case extendedFlags
@@ -87,6 +88,7 @@ extension FileInfo: Codable {
         case volumeMountedDevice
         case volumeEncodingsUsed
         case volumeUUID
+        case volumeFileSystemType
         case volumeFileSystemTypeName
         case volumeFileSystemSubtype
         case volumeQuotaSize
@@ -177,7 +179,17 @@ extension FileInfo: Codable {
         self.ownerID = try container.decodeIfPresent(uid_t.self, forKey: .ownerID)
         self.groupOwnerID = try container.decodeIfPresent(gid_t.self, forKey: .groupOwnerID)
         self.permissionsMode = try container.decodeIfPresent(mode_t.self, forKey: .permissionsMode)
-        self.accessControlList = try container.decodeIfPresent(AccessControlList.self, forKey: .acl)
+#if canImport(Darwin)
+        self.nfs4AccessControlList = try container.decodeIfPresent(
+            NFS4AccessControlList.self,
+            forKey: .nfs4AccessControlList
+        )
+#else
+        self.posixAccessControlList = try container.decodeIfPresent(
+            POSIXAccessControlList.self,
+            forKey: .posixAccessControlList
+        )
+#endif
         self.extendedFlags = try container.decodeIfPresent(ExtendedFlags.self, forKey: .extendedFlags)
         self.fileLinkCount = try container.decodeIfPresent(UInt32.self, forKey: .fileLinkCount)
         self.fileOptimalBlockSize = try container.decodeIfPresent(off_t.self, forKey: .fileOptimalBlockSize)
@@ -205,17 +217,38 @@ extension FileInfo: Codable {
         self.volumeMountedDevice = try container.decodeIfPresent(String.self, forKey: .volumeMountedDevice)
         self.volumeUUID = try container.decodeIfPresent(UUIDWrapper.self, forKey: .volumeUUID)?.uuid
         self.volumeFileSystemTypeName = try container.decodeIfPresent(String.self, forKey: .volumeFileSystemTypeName)
+#if canImport(Darwin)
+        self.volumeFileSystemType = try container.decodeIfPresent(UInt32.self, forKey: .volumeFileSystemType)
+#else
+        self.volumeFileSystemType = try container.decodeIfPresent(UInt32.self, forKey: .volumeFileSystemType).map {
+            FileSystemType($0)
+        }
+#endif
         self.volumeFileSystemSubtype = try container.decodeIfPresent(UInt32.self, forKey: .volumeFileSystemSubtype)
         self.volumeQuotaSize = try container.decodeIfPresent(off_t.self, forKey: .volumeQuotaSize)
         self.volumeReservedSize = try container.decodeIfPresent(off_t.self, forKey: .volumeReservedSize)
+
 #if canImport(Darwin)
+        do {
+            self.objectTag = try container.decodeIfPresent(ObjectTag.self, forKey: .objectTag)
+        } catch DecodingError.typeMismatch(let t, let context) where t == ObjectTag.self {
+            guard let key = context.codingPath.last as? CodingKeys,
+                  let container = try? decoder.container(keyedBy: CodingKeys.self),
+                  let nestedContainer = try? container.nestedContainer(keyedBy: AnyKey.self, forKey: key),
+                  let objectTag = nestedContainer.allKeys.first?.stringValue,
+                  nestedContainer.allKeys.count == 1 else {
+                throw DecodingError.typeMismatch(t, context)
+            }
+
+            self.objectTag = .unknown(objectTag)
+        }
+
         self.filename = try container.decodeIfPresent(String.self, forKey: .filename)
         self.pathString = try container.decodeIfPresent(String.self, forKey: .path)
         self.mountRelativePathString = try container.decodeIfPresent(String.self, forKey: .mountRelativePath)
         self.noFirmLinkPathString = try container.decodeIfPresent(String.self, forKey: .noFirmLinkPath)
         self.realFileSystemID = try container.decodeIfPresent(FSIDWrapper.self, forKey: .realFileSystemID)?.fsid
         self.objectType = try container.decodeIfPresent(ObjectType.self, forKey: .objectType)
-        self.objectTag = try container.decodeIfPresent(ObjectTag.self, forKey: .objectTag)
         self.linkID = try container.decodeIfPresent(UInt64.self, forKey: .linkID)
         self.persistentID = try container.decodeIfPresent(UInt64.self, forKey: .persistentID)
         self.ownerUUID = try container.decodeIfPresent(UUIDWrapper.self, forKey: .ownerUUID)?.uuid
@@ -255,15 +288,13 @@ extension FileInfo: Codable {
         self.volumeNativelySupportedKeys = try container.decodeIfPresent(Keys.self, forKey: .volumeSupportedKeys)
         self.volumeAllowedKeys = try container.decodeIfPresent(Keys.self, forKey: .fileSystemValidKeys)
 #else
-        self.path = try container.decodeIfPresent(FilePath.self, forKey: .path)
-        self.mountRelativePath = try container.decodeIfPresent(FilePath.self, forKey: .mountRelativePath)
+        self.path = try container.decodeIfPresent(String.self, forKey: .path).map { FilePath($0) }
         self.objectType = try container.decodeIfPresent(ObjectType.self, forKey: .objectType)
-        self.objectTag = try container.decodeIfPresent(ObjectTag.self, forKey: .objectTag)
         self.inode = try container.decodeIfPresent(UInt.self, forKey: .inode) as ino_t?
         self.posixFlags = try container.decodeIfPresent(POSIXFlags.self, forKey: .posixFlags)
         self.fileDataForkLogicalSize = try container.decodeIfPresent(off_t.self, forKey: .fileDataForkLogicalSize)
         self.fileDataForkPhysicalSize = try container.decodeIfPresent(off_t.self, forKey: .fileDataForkPhysicalSize)
-        self.volumeMountPoint = try container.decodeIfPresent(FilePath.self, forKey: .volumeMountPoint)
+        self.volumeMountPoint = try container.decodeIfPresent(String.self, forKey: .volumeMountPoint).map { FilePath($0) }
 #endif
     }
 
@@ -276,7 +307,9 @@ extension FileInfo: Codable {
         try container.encodeIfPresent(self.fileSystemID.map { FSIDWrapper(fsid: $0) }, forKey: .fileSystemID)
         try container.encodeIfPresent(self.realFileSystemID.map { FSIDWrapper(fsid: $0) }, forKey: .realFileSystemID)
         try container.encodeIfPresent(self.objectType, forKey: .objectType)
+#if canImport(Darwin)
         try container.encodeIfPresent(self.objectTag, forKey: .objectTag)
+#endif
         try container.encodeIfPresent(self.linkID, forKey: .linkID)
         try container.encodeIfPresent(self.persistentID, forKey: .persistentID)
         try container.encodeIfPresent(self.inode, forKey: .inode)
@@ -299,7 +332,11 @@ extension FileInfo: Codable {
         try container.encodeIfPresent(self.groupOwnerID, forKey: .groupOwnerID)
         try container.encodeIfPresent(self.groupOwnerUUID.map { try UUIDWrapper(uuid: $0) }, forKey: .groupOwnerUUID)
         try container.encodeIfPresent(self.permissionsMode, forKey: .permissionsMode)
-        try container.encodeIfPresent(self.accessControlList, forKey: .acl)
+#if canImport(Darwin)
+        try container.encodeIfPresent(self.nfs4AccessControlList, forKey: .nfs4AccessControlList)
+#else
+        try container.encodeIfPresent(self.posixAccessControlList, forKey: .posixAccessControlList)
+#endif
         try container.encodeIfPresent(self.protectionFlags, forKey: .protectionFlags)
         try container.encodeIfPresent(self.extendedFlags, forKey: .extendedFlags)
         try container.encodeIfPresent(self.generationCount, forKey: .generationCount)
@@ -338,13 +375,14 @@ extension FileInfo: Codable {
 #if canImport(Darwin)
         try container.encodeIfPresent(self.volumeMountPointPathString, forKey: .volumeMountPoint)
 #else
-        try container.encodeIfPresent(self.volumeMountPoint, forKey: .volumeMountPoint)
+        try container.encodeIfPresent(self.volumeMountPoint?.string, forKey: .volumeMountPoint)
 #endif
         try container.encodeIfPresent(self.volumeName, forKey: .volumeName)
         try container.encodeIfPresent(self.volumeMountFlags, forKey: .volumeMountFlags)
         try container.encodeIfPresent(self.volumeMountedDevice, forKey: .volumeMountedDevice)
         try container.encodeIfPresent(self.volumeEncodingsUsed, forKey: .volumeEncodingsUsed)
         try container.encodeIfPresent(self.volumeUUID.map { try UUIDWrapper(uuid: $0) }, forKey: .volumeUUID)
+        try container.encodeIfPresent(self.volumeFileSystemType, forKey: .volumeFileSystemType)
         try container.encodeIfPresent(self.volumeFileSystemTypeName, forKey: .volumeFileSystemTypeName)
         try container.encodeIfPresent(self.volumeFileSystemSubtype, forKey: .volumeFileSystemSubtype)
         try container.encodeIfPresent(self.volumeQuotaSize, forKey: .volumeQuotaSize)
@@ -362,8 +400,7 @@ extension FileInfo: Codable {
         try container.encodeIfPresent(self.finderInfo, forKey: .finderInfo)
         try container.encodeIfPresent(self._posixFlags, forKey: .posixFlags)
 #else
-        try container.encodeIfPresent(self.path, forKey: .path)
-        try container.encodeIfPresent(self.mountRelativePath, forKey: .mountRelativePath)
+        try container.encodeIfPresent(self.path?.string, forKey: .path)
         try container.encodeIfPresent(self.posixFlags, forKey: .posixFlags)
 #endif
     }
@@ -404,3 +441,10 @@ extension FileInfo.Keys: Codable {
     }
 }
 #endif
+
+private struct AnyKey: CodingKey {
+    var stringValue: String
+    var intValue: Int? { nil }
+    init(stringValue: String) { self.stringValue = stringValue }
+    init?(intValue: Int) { nil }
+}

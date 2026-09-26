@@ -37,13 +37,11 @@ struct FileInfoEquatableTests {
 #endif
     }
 
-    private var objectTag: FileInfo.ObjectTag {
 #if canImport(Darwin)
-        .afp
+    private let objectTag: FileInfo.ObjectTag = .afp
 #else
-        .unknown(0)
+    private let fileSystemType: FileInfo.FileSystemType = .unknown("kijeFS")
 #endif
-    }
 
     private var accessControlList: AccessControlList? {
 #if canImport(Darwin)
@@ -126,7 +124,7 @@ struct FileInfoEquatableTests {
             ownerID: 501,
             groupOwnerID: 502,
             permissionsMode: 0o755,
-            accessControlList: accessControlList,
+            nfs4AccessControlList: accessControlList,
             posixFlags: .init(rawValue: 14253),
             extendedFlags: .init(rawValue: 25364),
             generationCount: 123456,
@@ -174,6 +172,7 @@ struct FileInfoEquatableTests {
             groupOwnerUUID: groupOwnerUUID.uuid,
             volumeUUID: volumeUUID.uuid,
             volumeFileSystemTypeName: "quxqux",
+            volumeFileSystemType: 13243546,
             volumeFileSystemSubtype: 1234567890,
             volumeQuotaSize: 2345678901,
             volumeReservedSize: 3456789012,
@@ -185,12 +184,10 @@ struct FileInfoEquatableTests {
 #else
         FileInfo(
             path: FilePath("bar"),
-            mountRelativePath: FilePath("baz"),
             deviceID: 123,
             realDeviceID: 234,
             fileSystemID: fileSystemID,
             objectType: .regular,
-            objectTag: objectTag,
             inode: 1234,
             creationTime: .init(tv_sec: 5678, tv_nsec: 6789),
             modificationTime: .init(tv_sec: 7890, tv_nsec: 8901),
@@ -199,7 +196,7 @@ struct FileInfoEquatableTests {
             ownerID: 501,
             groupOwnerID: 502,
             permissionsMode: 0o755,
-            accessControlList: accessControlList,
+            posixAccessControlList: accessControlList,
             posixFlags: .init(rawValue: 14253),
             extendedFlags: .init(rawValue: 25364),
             fileLinkCount: 789012,
@@ -221,6 +218,7 @@ struct FileInfoEquatableTests {
             volumeMountFlags: 576879,
             volumeMountedDevice: "bazbaz",
             volumeUUID: volumeUUID.uuid,
+            volumeFileSystemType: fileSystemType,
             volumeFileSystemTypeName: "quxqux",
             volumeFileSystemSubtype: 1234567890,
             volumeQuotaSize: 2345678901,
@@ -305,9 +303,6 @@ struct FileInfoEquatableTests {
             "tv_nsec" : 45678,
             "tv_sec" : 34567
           },
-          "acl" : {
-            "aclData" : "ASzBbQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAD\\/\\/+7u3d3MzLu7qqr\\/\\/\\/\\/+AAAAAQAAAAQ="
-          },
           "addedTime" : {
             "tv_nsec" : 89012,
             "tv_sec" : 78901
@@ -391,6 +386,9 @@ struct FileInfoEquatableTests {
             "tv_sec" : 7890
           },
           "mountRelativePath" : "baz",
+          "nfs4AccessControlList" : {
+            "aclData" : "ASzBbQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAD\\/\\/+7u3d3MzLu7qqr\\/\\/\\/\\/+AAAAAQAAAAQ="
+          },
           "noFirmLinkPath" : "qux",
           "objectTag" : {
             "afp" : {
@@ -431,6 +429,7 @@ struct FileInfoEquatableTests {
           "volumeEncodingsUsed" : 9012345678,
           "volumeFileCount" : 243546,
           "volumeFileSystemSubtype" : 1234567890,
+          "volumeFileSystemType" : 13243546,
           "volumeFileSystemTypeName" : "quxqux",
           "volumeFreeSpace" : 78901234,
           "volumeMaxObjectCount" : 465768,
@@ -465,9 +464,6 @@ struct FileInfoEquatableTests {
             "tv_nsec" : 45678,
             "tv_sec" : 34567
           },
-          "acl" : {
-            "textRepresentation" : "user::rwx\\nuser:nobody:rw-\\ngroup::r--\\nmask::rwx\\nother::r--\\n"
-          },
           "attributeModificationTime" : {
             "tv_nsec" : 23456,
             "tv_sec" : 12345
@@ -499,60 +495,32 @@ struct FileInfoEquatableTests {
             "tv_nsec" : 8901,
             "tv_sec" : 7890
           },
-          "mountRelativePath" : {
-            "_storage" : {
-              "nullTerminatedStorage" : [
-                98,
-                97,
-                122,
-                0
-              ]
-            }
-          },
-          "objectTag" : {
-            "unknown" : {
-              "_0" : 0
-            }
-          },
           "objectType" : {
             "regular" : {
 
             }
           },
           "ownerID" : 501,
-          "path" : {
-            "_storage" : {
-              "nullTerminatedStorage" : [
-                98,
-                97,
-                114,
-                0
-              ]
-            }
-          },
+          "path" : "bar",
           "permissionsMode" : 493,
+          "posixAccessControlList" : {
+            "textRepresentation" : "user::rwx\\nuser:nobody:rw-\\ngroup::r--\\nmask::rwx\\nother::r--\\n"
+          },
           "posixFlags" : 14253,
           "realDeviceID" : 234,
           "volumeAvailableSpace" : 89012345,
           "volumeFileSystemSubtype" : 1234567890,
+          "volumeFileSystemType" : {
+            "unknown" : {
+              "_0" : "kijeFS"
+            }
+          },
           "volumeFileSystemTypeName" : "quxqux",
           "volumeFreeSpace" : 78901234,
           "volumeMaxObjectCount" : 465768,
           "volumeMinAllocationSize" : 123456789,
           "volumeMountFlags" : 576879,
-          "volumeMountPoint" : {
-            "_storage" : {
-              "nullTerminatedStorage" : [
-                102,
-                111,
-                111,
-                102,
-                111,
-                111,
-                0
-              ]
-            }
-          },
+          "volumeMountPoint" : "foofoo",
           "volumeMountedDevice" : "bazbaz",
           "volumeName" : "barbar",
           "volumeObjectCount" : 132435,

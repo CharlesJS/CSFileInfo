@@ -8,4 +8,7 @@ on:
 
 jobs:
   run-ci:
-    uses: CharlesJS/shared-workflows/.github/workflows/ci.yml@main
+    uses: CharlesJS/shared-workflows/.github/workflows/ci.yml@allow-root
+    with: 
+      run_as_root: true
+      setup_filesystems: true

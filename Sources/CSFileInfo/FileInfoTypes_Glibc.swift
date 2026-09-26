@@ -43,8 +43,13 @@ extension FileInfo {
         }
     }
 
-    public enum ObjectTag: Codable, Equatable, Sendable {
+    public enum FileSystemType: Codable, Equatable, Sendable {
+        private enum Magic {
+            static let fuse = 0x65735546
+        }
+
         case affs
+        case apfs
         case autofs
         case bdevfs
         case binfmt
@@ -62,7 +67,9 @@ extension FileInfo {
         case ext2
         case ext4
         case f2fs
+        case fuse
         case hpfs
+        case hfs
         case hugetlbfs
         case isofs
         case jffs2
@@ -89,10 +96,10 @@ extension FileInfo {
         case xfs
         case xenfs
         case zonefs
-        case unknown(Int)
+        case unknown(String)
 
-        init(_ type: Int) {
-            self = switch type {
+        init(_ type: some BinaryInteger) {
+            self = switch Int(type) {
             case Int(AFFS_SUPER_MAGIC): .affs
             case Int(AUTOFS_SUPER_MAGIC): .autofs
             case Int(BDEVFS_MAGIC): .bdevfs
@@ -110,6 +117,7 @@ extension FileInfo {
             case Int(EXT2_SUPER_MAGIC): .ext2
             case Int(EXT4_SUPER_MAGIC): .ext4
             case Int(F2FS_SUPER_MAGIC): .f2fs
+            case Magic.fuse: .fuse
             case Int(HPFS_SUPER_MAGIC): .hpfs
             case Int(HUGETLBFS_MAGIC): .hugetlbfs
             case Int(ISOFS_SUPER_MAGIC): .isofs
@@ -140,7 +148,7 @@ extension FileInfo {
             case Int(XFS_SUPER_MAGIC): .xfs
             case Int(XENFS_SUPER_MAGIC): .xenfs
             case Int(ZONEFS_MAGIC): .zonefs
-            default: .unknown(type)
+            default: .unknown("f_type 0x\(String(type, radix: 16))")
             }
         }
     }
