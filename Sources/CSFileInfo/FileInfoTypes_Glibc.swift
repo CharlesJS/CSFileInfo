@@ -43,8 +43,13 @@ extension FileInfo {
         }
     }
 
-    public enum ObjectTag: Codable, Equatable, Sendable {
+    public enum FileSystemType: Codable, Hashable, Sendable {
+        private enum Magic {
+            static let fuse: UInt32 = 0x65735546
+        }
+
         case affs
+        case apfs
         case autofs
         case bdevfs
         case binfmt
@@ -62,11 +67,15 @@ extension FileInfo {
         case ext2
         case ext4
         case f2fs
+        case fuse
         case hpfs
+        case hfs
         case hugetlbfs
         case isofs
         case jffs2
-        case minix
+        case minix1(filenameLength: Int)
+        case minix2(filenameLength: Int)
+        case minix3
         case msdosfs
         case ncp
         case nilfs
@@ -89,58 +98,72 @@ extension FileInfo {
         case xfs
         case xenfs
         case zonefs
-        case unknown(Int)
+        case unknown(UInt32)
 
-        init(_ type: Int) {
-            self = switch type {
-            case Int(AFFS_SUPER_MAGIC): .affs
-            case Int(AUTOFS_SUPER_MAGIC): .autofs
-            case Int(BDEVFS_MAGIC): .bdevfs
-            case Int(BPF_FS_MAGIC): .bpf
-            case Int(BTRFS_SUPER_MAGIC): .btrfs
-            case Int(CEPH_SUPER_MAGIC): .ceph
-            case Int(CGROUP_SUPER_MAGIC): .cgroup
-            case Int(CGROUP2_SUPER_MAGIC): .cgroup2
-            case Int(CODA_SUPER_MAGIC): .coda
-            case Int(CRAMFS_MAGIC): .cramfs
-            case Int(DEBUGFS_MAGIC): .debugfs
-            case Int(DEVPTS_SUPER_MAGIC): .devpts
-            case Int(EFIVARFS_MAGIC): .efivarfs
-            case Int(EXFAT_SUPER_MAGIC): .exfat
-            case Int(EXT2_SUPER_MAGIC): .ext2
-            case Int(EXT4_SUPER_MAGIC): .ext4
-            case Int(F2FS_SUPER_MAGIC): .f2fs
-            case Int(HPFS_SUPER_MAGIC): .hpfs
-            case Int(HUGETLBFS_MAGIC): .hugetlbfs
-            case Int(ISOFS_SUPER_MAGIC): .isofs
-            case Int(JFFS2_SUPER_MAGIC): .jffs2
-            case Int(MINIX_SUPER_MAGIC): .minix
-            case Int(MINIX_SUPER_MAGIC2): .minix
-            case Int(MINIX2_SUPER_MAGIC): .minix
-            case Int(MINIX2_SUPER_MAGIC2): .minix
-            case Int(MINIX3_SUPER_MAGIC): .minix
-            case Int(MSDOS_SUPER_MAGIC): .msdosfs
-            case Int(NCP_SUPER_MAGIC): .ncp
-            case Int(NILFS_SUPER_MAGIC): .nilfs
-            case Int(NSFS_MAGIC): .nsfs
-            case Int(OCFS2_SUPER_MAGIC): .ocfs2
-            case Int(OVERLAYFS_SUPER_MAGIC): .overlayfs
-            case Int(PROC_SUPER_MAGIC): .procfs
-            case Int(QNX4_SUPER_MAGIC): .qnx4
-            case Int(QNX6_SUPER_MAGIC): .qnx6
-            case Int(RAMFS_MAGIC): .ramfs
-            case Int(REISERFS_SUPER_MAGIC): .reiserfs
-            case Int(SMB_SUPER_MAGIC): .smb
-            case Int(SMB2_SUPER_MAGIC): .smb2
-            case Int(SQUASHFS_MAGIC): .squashfs
-            case Int(TMPFS_MAGIC): .tmpfs
-            case Int(TRACEFS_MAGIC): .tracefs
-            case Int(UDF_SUPER_MAGIC): .udf
-            case Int(V9FS_MAGIC): .v9fs
-            case Int(XFS_SUPER_MAGIC): .xfs
-            case Int(XENFS_SUPER_MAGIC): .xenfs
-            case Int(ZONEFS_MAGIC): .zonefs
-            default: .unknown(type)
+        private static let rawToType: [UInt32 : FileSystemType] = [
+            UInt32(bitPattern: AFFS_SUPER_MAGIC): .affs,
+            UInt32(bitPattern: AUTOFS_SUPER_MAGIC): .autofs,
+            UInt32(bitPattern: BDEVFS_MAGIC): .bdevfs,
+            BPF_FS_MAGIC: .bpf,
+            BTRFS_SUPER_MAGIC: .btrfs,
+            UInt32(bitPattern: CEPH_SUPER_MAGIC): .ceph,
+            UInt32(bitPattern: CGROUP_SUPER_MAGIC): .cgroup,
+            UInt32(bitPattern: CGROUP2_SUPER_MAGIC): .cgroup2,
+            UInt32(bitPattern: CODA_SUPER_MAGIC): .coda,
+            UInt32(bitPattern: CRAMFS_MAGIC): .cramfs,
+            UInt32(bitPattern: DEBUGFS_MAGIC): .debugfs,
+            UInt32(bitPattern: DEVPTS_SUPER_MAGIC): .devpts,
+            EFIVARFS_MAGIC: .efivarfs,
+            UInt32(bitPattern: EXFAT_SUPER_MAGIC): .exfat,
+            UInt32(bitPattern: EXT4_SUPER_MAGIC): .ext4,
+            F2FS_SUPER_MAGIC: .f2fs,
+            Magic.fuse: .fuse,
+            HPFS_SUPER_MAGIC: .hpfs,
+            HUGETLBFS_MAGIC: .hugetlbfs,
+            UInt32(bitPattern: ISOFS_SUPER_MAGIC): .isofs,
+            UInt32(bitPattern: JFFS2_SUPER_MAGIC): .jffs2,
+            UInt32(bitPattern: MINIX_SUPER_MAGIC): .minix1(filenameLength: 14),
+            UInt32(bitPattern: MINIX_SUPER_MAGIC2): .minix1(filenameLength: 30),
+            UInt32(bitPattern: MINIX2_SUPER_MAGIC): .minix2(filenameLength: 14),
+            UInt32(bitPattern: MINIX2_SUPER_MAGIC2): .minix2(filenameLength: 30),
+            UInt32(bitPattern: MINIX3_SUPER_MAGIC): .minix3,
+            UInt32(bitPattern: MSDOS_SUPER_MAGIC): .msdosfs,
+            UInt32(bitPattern: NCP_SUPER_MAGIC): .ncp,
+            UInt32(bitPattern: NILFS_SUPER_MAGIC): .nilfs,
+            UInt32(bitPattern: NSFS_MAGIC): .nsfs,
+            UInt32(bitPattern: OCFS2_SUPER_MAGIC): .ocfs2,
+            UInt32(bitPattern: OVERLAYFS_SUPER_MAGIC): .overlayfs,
+            UInt32(bitPattern: PROC_SUPER_MAGIC): .procfs,
+            UInt32(bitPattern: QNX4_SUPER_MAGIC): .qnx4,
+            UInt32(bitPattern: QNX6_SUPER_MAGIC): .qnx6,
+            RAMFS_MAGIC: .ramfs,
+            UInt32(bitPattern: REISERFS_SUPER_MAGIC): .reiserfs,
+            UInt32(bitPattern: SMB_SUPER_MAGIC): .smb,
+            SMB2_SUPER_MAGIC: .smb2,
+            UInt32(bitPattern: SQUASHFS_MAGIC): .squashfs,
+            UInt32(bitPattern: TMPFS_MAGIC): .tmpfs,
+            UInt32(bitPattern: TRACEFS_MAGIC): .tracefs,
+            UInt32(bitPattern: UDF_SUPER_MAGIC): .udf,
+            UInt32(bitPattern: V9FS_MAGIC): .v9fs,
+            UInt32(bitPattern: XFS_SUPER_MAGIC): .xfs,
+            XENFS_SUPER_MAGIC: .xenfs,
+            UInt32(bitPattern: ZONEFS_MAGIC): .zonefs
+        ]
+
+        private static let typeToRaw = Dictionary(uniqueKeysWithValues: rawToType.map { ($1, $0) })
+
+        init(_ rawValue: UInt32) {
+            if let type = Self.rawToType[rawValue] {
+                self = type
+            } else {
+                self = .unknown(rawValue)
+            }
+        }
+
+        var rawValue: UInt32 {
+            switch self {
+            case .unknown(let raw): raw
+            default: Self.typeToRaw[self]!
             }
         }
     }

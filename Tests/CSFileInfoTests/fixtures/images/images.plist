@@ -5,6 +5,8 @@
 	<dict>
 		<key>name</key>
 		<string>apfs</string>
+		<key>fileSystem</key>
+		<string>apfs</string>
 		<key>supportsHardLinks</key>
 		<true/>
 		<key>supportsLinkIDs</key>
@@ -91,7 +93,7 @@
 					</dict>
 					<key>mountRelativePath</key>
 					<string>/Directory</string>
-					<key>objectTag</key>
+					<key>fileSystemType</key>
 					<dict>
 						<key>apfs</key>
 						<dict/>
@@ -99,6 +101,11 @@
 					<key>objectType</key>
 					<dict>
 						<key>directory</key>
+						<dict/>
+					</dict>
+					<key>objectTag</key>
+					<dict>
+						<key>apfs</key>
 						<dict/>
 					</dict>
 					<key>ownerID</key>
@@ -148,9 +155,9 @@
 					<key>attributeModificationTime</key>
 					<dict>
 						<key>tv_nsec</key>
-						<integer>303472477</integer>
+						<integer>781743142</integer>
 						<key>tv_sec</key>
-						<integer>1684984757</integer>
+						<integer>1789619471</integer>
 					</dict>
 					<key>backupTime</key>
 					<dict>
@@ -210,7 +217,7 @@
 					</dict>
 					<key>mountRelativePath</key>
 					<string>/Directory/PlainFile</string>
-					<key>objectTag</key>
+					<key>fileSystemType</key>
 					<dict>
 						<key>apfs</key>
 						<dict/>
@@ -218,6 +225,11 @@
 					<key>objectType</key>
 					<dict>
 						<key>regular</key>
+						<dict/>
+					</dict>
+					<key>objectTag</key>
+					<dict>
+						<key>apfs</key>
 						<dict/>
 					</dict>
 					<key>ownerID</key>
@@ -295,10 +307,10 @@
 					<integer>4096</integer>
 					<key>fileDeviceType</key>
 					<integer>0</integer>
-					<key>fileLinkCount</key>
-					<integer>1</integer>
 					<key>fileOptimalBlockSize</key>
 					<integer>4096</integer>
+					<key>fileLinkCount</key>
+					<integer>1</integer>
 					<key>fileResourceForkLogicalSize</key>
 					<integer>436</integer>
 					<key>fileResourceForkPhysicalSize</key>
@@ -363,7 +375,7 @@
 					</dict>
 					<key>mountRelativePath</key>
 					<string>/Directory/SillyBalls</string>
-					<key>objectTag</key>
+					<key>fileSystemType</key>
 					<dict>
 						<key>apfs</key>
 						<dict/>
@@ -371,6 +383,11 @@
 					<key>objectType</key>
 					<dict>
 						<key>regular</key>
+						<dict/>
+					</dict>
+					<key>objectTag</key>
+					<dict>
+						<key>apfs</key>
 						<dict/>
 					</dict>
 					<key>ownerID</key>
@@ -410,7 +427,7 @@
 						<key>tv_sec</key>
 						<integer>1684968926</integer>
 					</dict>
-					<key>acl</key>
+					<key>nfs4AccessControlList</key>
 					<dict>
 						<key>aclData</key>
 						<string>ASzBbQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAB5vruKJ8RL9KE/9UzRNDmGAAAAgQAACACrze+rze+rze+rze8AAAAUAAAAQgAAAQA=</string>
@@ -489,7 +506,7 @@
 					</dict>
 					<key>mountRelativePath</key>
 					<string>/Directory/FileWithACL</string>
-					<key>objectTag</key>
+					<key>fileSystemType</key>
 					<dict>
 						<key>apfs</key>
 						<dict/>
@@ -497,6 +514,11 @@
 					<key>objectType</key>
 					<dict>
 						<key>regular</key>
+						<dict/>
+					</dict>
+					<key>objectTag</key>
+					<dict>
+						<key>apfs</key>
 						<dict/>
 					</dict>
 					<key>ownerID</key>
@@ -546,9 +568,9 @@
 					<key>attributeModificationTime</key>
 					<dict>
 						<key>tv_nsec</key>
-						<integer>210949494</integer>
+						<integer>477117341</integer>
 						<key>tv_sec</key>
-						<integer>1684980767</integer>
+						<integer>1789687904</integer>
 					</dict>
 					<key>backupTime</key>
 					<dict>
@@ -608,7 +630,7 @@
 					</dict>
 					<key>mountRelativePath</key>
 					<string>/Directory/SparseFile</string>
-					<key>objectTag</key>
+					<key>fileSystemType</key>
 					<dict>
 						<key>apfs</key>
 						<dict/>
@@ -616,6 +638,11 @@
 					<key>objectType</key>
 					<dict>
 						<key>regular</key>
+						<dict/>
+					</dict>
+					<key>objectTag</key>
+					<dict>
+						<key>apfs</key>
 						<dict/>
 					</dict>
 					<key>ownerID</key>
@@ -769,7 +796,7 @@
 					</dict>
 					<key>mountRelativePath</key>
 					<string>/DirectoryWithAttrs</string>
-					<key>objectTag</key>
+					<key>fileSystemType</key>
 					<dict>
 						<key>apfs</key>
 						<dict/>
@@ -777,6 +804,11 @@
 					<key>objectType</key>
 					<dict>
 						<key>directory</key>
+						<dict/>
+					</dict>
+					<key>objectTag</key>
+					<dict>
+						<key>apfs</key>
 						<dict/>
 					</dict>
 					<key>ownerID</key>
@@ -826,9 +858,9 @@
 					<key>attributeModificationTime</key>
 					<dict>
 						<key>tv_nsec</key>
-						<integer>303472477</integer>
+						<integer>781743142</integer>
 						<key>tv_sec</key>
-						<integer>1684984757</integer>
+						<integer>1789619471</integer>
 					</dict>
 					<key>backupTime</key>
 					<dict>
@@ -888,7 +920,7 @@
 					</dict>
 					<key>mountRelativePath</key>
 					<string>/DirectoryWithAttrs/hardlink</string>
-					<key>objectTag</key>
+					<key>fileSystemType</key>
 					<dict>
 						<key>apfs</key>
 						<dict/>
@@ -896,6 +928,11 @@
 					<key>objectType</key>
 					<dict>
 						<key>regular</key>
+						<dict/>
+					</dict>
+					<key>objectTag</key>
+					<dict>
+						<key>apfs</key>
 						<dict/>
 					</dict>
 					<key>ownerID</key>
@@ -927,6 +964,8 @@
 	</dict>
 	<dict>
 		<key>name</key>
+		<string>exfat</string>
+		<key>fileSystem</key>
 		<string>exfat</string>
 		<key>supportsHardLinks</key>
 		<false/>
@@ -972,8 +1011,6 @@
 					<integer>0</integer>
 					<key>filename</key>
 					<string>Directory</string>
-					<key>inode</key>
-					<integer>6</integer>
 					<key>modificationTime</key>
 					<dict>
 						<key>tv_nsec</key>
@@ -983,9 +1020,9 @@
 					</dict>
 					<key>mountRelativePath</key>
 					<string>/Directory</string>
-					<key>objectTag</key>
+					<key>fileSystemType</key>
 					<dict>
-						<key>none</key>
+						<key>exfat</key>
 						<dict/>
 					</dict>
 					<key>objectType</key>
@@ -1037,8 +1074,6 @@
 					<integer>1</integer>
 					<key>filename</key>
 					<string>PlainFile</string>
-					<key>inode</key>
-					<integer>10</integer>
 					<key>modificationTime</key>
 					<dict>
 						<key>tv_nsec</key>
@@ -1048,7 +1083,7 @@
 					</dict>
 					<key>mountRelativePath</key>
 					<string>/Directory/PlainFile</string>
-					<key>objectTag</key>
+					<key>fileSystemType</key>
 					<dict>
 						<key>none</key>
 						<dict/>
@@ -1136,8 +1171,6 @@
 							</dict>
 						</dict>
 					</dict>
-					<key>inode</key>
-					<integer>7</integer>
 					<key>modificationTime</key>
 					<dict>
 						<key>tv_nsec</key>
@@ -1147,7 +1180,7 @@
 					</dict>
 					<key>mountRelativePath</key>
 					<string>/Directory/SillyBalls</string>
-					<key>objectTag</key>
+					<key>fileSystemType</key>
 					<dict>
 						<key>none</key>
 						<dict/>
@@ -1249,8 +1282,6 @@
 							</dict>
 						</dict>
 					</dict>
-					<key>inode</key>
-					<integer>11</integer>
 					<key>modificationTime</key>
 					<dict>
 						<key>tv_nsec</key>
@@ -1260,7 +1291,7 @@
 					</dict>
 					<key>mountRelativePath</key>
 					<string>/DirectoryWithAttrs</string>
-					<key>objectTag</key>
+					<key>fileSystemType</key>
 					<dict>
 						<key>none</key>
 						<dict/>
@@ -1283,6 +1314,8 @@
 	<dict>
 		<key>name</key>
 		<string>fat32</string>
+		<key>fileSystem</key>
+		<string>fat32</string>
 		<key>supportsHardLinks</key>
 		<false/>
 		<key>supportsLinkIDs</key>
@@ -1303,13 +1336,6 @@
 						<key>tv_sec</key>
 						<integer>1684886400</integer>
 					</dict>
-					<key>attributeModificationTime</key>
-					<dict>
-						<key>tv_nsec</key>
-						<integer>0</integer>
-						<key>tv_sec</key>
-						<integer>1684972718</integer>
-					</dict>
 					<key>creationTime</key>
 					<dict>
 						<key>tv_nsec</key>
@@ -1327,8 +1353,6 @@
 					<integer>0</integer>
 					<key>filename</key>
 					<string>Directory</string>
-					<key>inode</key>
-					<integer>3</integer>
 					<key>modificationTime</key>
 					<dict>
 						<key>tv_nsec</key>
@@ -1338,7 +1362,7 @@
 					</dict>
 					<key>mountRelativePath</key>
 					<string>/Directory</string>
-					<key>objectTag</key>
+					<key>fileSystemType</key>
 					<dict>
 						<key>none</key>
 						<dict/>
@@ -1368,13 +1392,6 @@
 						<key>tv_sec</key>
 						<integer>1684886400</integer>
 					</dict>
-					<key>attributeModificationTime</key>
-					<dict>
-						<key>tv_nsec</key>
-						<integer>0</integer>
-						<key>tv_sec</key>
-						<integer>1684971214</integer>
-					</dict>
 					<key>creationTime</key>
 					<dict>
 						<key>tv_nsec</key>
@@ -1392,8 +1409,6 @@
 					<integer>1</integer>
 					<key>filename</key>
 					<string>PlainFile</string>
-					<key>inode</key>
-					<integer>18</integer>
 					<key>modificationTime</key>
 					<dict>
 						<key>tv_nsec</key>
@@ -1403,7 +1418,7 @@
 					</dict>
 					<key>mountRelativePath</key>
 					<string>/Directory/PlainFile</string>
-					<key>objectTag</key>
+					<key>fileSystemType</key>
 					<dict>
 						<key>none</key>
 						<dict/>
@@ -1432,13 +1447,6 @@
 						<integer>0</integer>
 						<key>tv_sec</key>
 						<integer>1684713600</integer>
-					</dict>
-					<key>attributeModificationTime</key>
-					<dict>
-						<key>tv_nsec</key>
-						<integer>0</integer>
-						<key>tv_sec</key>
-						<integer>1684788794</integer>
 					</dict>
 					<key>creationTime</key>
 					<dict>
@@ -1491,8 +1499,6 @@
 							</dict>
 						</dict>
 					</dict>
-					<key>inode</key>
-					<integer>4</integer>
 					<key>modificationTime</key>
 					<dict>
 						<key>tv_nsec</key>
@@ -1502,7 +1508,7 @@
 					</dict>
 					<key>mountRelativePath</key>
 					<string>/Directory/SillyBalls</string>
-					<key>objectTag</key>
+					<key>fileSystemType</key>
 					<dict>
 						<key>none</key>
 						<dict/>
@@ -1531,13 +1537,6 @@
 						<integer>0</integer>
 						<key>tv_sec</key>
 						<integer>1684886400</integer>
-					</dict>
-					<key>attributeModificationTime</key>
-					<dict>
-						<key>tv_nsec</key>
-						<integer>0</integer>
-						<key>tv_sec</key>
-						<integer>1684972696</integer>
 					</dict>
 					<key>creationTime</key>
 					<dict>
@@ -1604,18 +1603,16 @@
 							</dict>
 						</dict>
 					</dict>
-					<key>inode</key>
-					<integer>19</integer>
 					<key>modificationTime</key>
 					<dict>
 						<key>tv_nsec</key>
 						<integer>0</integer>
 						<key>tv_sec</key>
-						<integer>1684972696</integer>
+						<integer>1684972718</integer>
 					</dict>
 					<key>mountRelativePath</key>
 					<string>/DirectoryWithAttrs</string>
-					<key>objectTag</key>
+					<key>fileSystemType</key>
 					<dict>
 						<key>none</key>
 						<dict/>
@@ -1637,6 +1634,8 @@
 	</dict>
 	<dict>
 		<key>name</key>
+		<string>hfs+</string>
+		<key>fileSystem</key>
 		<string>hfs+</string>
 		<key>supportsHardLinks</key>
 		<true/>
@@ -1722,7 +1721,7 @@
 					</dict>
 					<key>mountRelativePath</key>
 					<string>/Directory</string>
-					<key>objectTag</key>
+					<key>fileSystemType</key>
 					<dict>
 						<key>hfs</key>
 						<dict/>
@@ -1833,7 +1832,7 @@
 					</dict>
 					<key>mountRelativePath</key>
 					<string>/Directory/PlainFile</string>
-					<key>objectTag</key>
+					<key>fileSystemType</key>
 					<dict>
 						<key>hfs</key>
 						<dict/>
@@ -1978,7 +1977,7 @@
 					</dict>
 					<key>mountRelativePath</key>
 					<string>/Directory/SillyBalls</string>
-					<key>objectTag</key>
+					<key>fileSystemType</key>
 					<dict>
 						<key>hfs</key>
 						<dict/>
@@ -2019,7 +2018,7 @@
 						<key>tv_sec</key>
 						<integer>1684983744</integer>
 					</dict>
-					<key>acl</key>
+					<key>nfs4AccessControlList</key>
 					<dict>
 						<key>aclData</key>
 						<string>ASzBbQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAB5vruKJ8RL9KE/9UzRNDmGAAAAgQAACACrze+rze+rze+rze8AAAAUAAAAQgAAAQA=</string>
@@ -2096,7 +2095,7 @@
 					</dict>
 					<key>mountRelativePath</key>
 					<string>/Directory/FileWithACL</string>
-					<key>objectTag</key>
+					<key>fileSystemType</key>
 					<dict>
 						<key>hfs</key>
 						<dict/>
@@ -2249,7 +2248,7 @@
 					</dict>
 					<key>mountRelativePath</key>
 					<string>/DirectoryWithAttrs</string>
-					<key>objectTag</key>
+					<key>fileSystemType</key>
 					<dict>
 						<key>hfs</key>
 						<dict/>
@@ -2360,7 +2359,7 @@
 					</dict>
 					<key>mountRelativePath</key>
 					<string>/DirectoryWithAttrs/hardlink</string>
-					<key>objectTag</key>
+					<key>fileSystemType</key>
 					<dict>
 						<key>hfs</key>
 						<dict/>
@@ -2393,6 +2392,8 @@
 	</dict>
 	<dict>
 		<key>name</key>
+		<string>udf</string>
+		<key>fileSystem</key>
 		<string>udf</string>
 		<key>supportsHardLinks</key>
 		<true/>
@@ -2438,14 +2439,10 @@
 					<integer>192</integer>
 					<key>directoryMountStatus</key>
 					<integer>0</integer>
-					<key>directoryOptimalBlockSize</key>
-					<integer>1048576</integer>
 					<key>filename</key>
 					<string>Directory</string>
 					<key>groupOwnerID</key>
 					<integer>20</integer>
-					<key>inode</key>
-					<integer>23</integer>
 					<key>modificationTime</key>
 					<dict>
 						<key>tv_nsec</key>
@@ -2455,7 +2452,7 @@
 					</dict>
 					<key>mountRelativePath</key>
 					<string>/Directory</string>
-					<key>objectTag</key>
+					<key>fileSystemType</key>
 					<dict>
 						<key>udf</key>
 						<dict/>
@@ -2520,8 +2517,6 @@
 					<integer>0</integer>
 					<key>fileLinkCount</key>
 					<integer>2</integer>
-					<key>fileOptimalBlockSize</key>
-					<integer>1048576</integer>
 					<key>fileResourceForkLogicalSize</key>
 					<integer>0</integer>
 					<key>fileResourceForkPhysicalSize</key>
@@ -2534,8 +2529,6 @@
 					<string>PlainFile</string>
 					<key>groupOwnerID</key>
 					<integer>20</integer>
-					<key>inode</key>
-					<integer>33</integer>
 					<key>modificationTime</key>
 					<dict>
 						<key>tv_nsec</key>
@@ -2545,7 +2538,7 @@
 					</dict>
 					<key>mountRelativePath</key>
 					<string>/Directory/PlainFile</string>
-					<key>objectTag</key>
+					<key>fileSystemType</key>
 					<dict>
 						<key>udf</key>
 						<dict/>
@@ -2608,10 +2601,6 @@
 					<integer>2560</integer>
 					<key>fileDeviceType</key>
 					<integer>0</integer>
-					<key>fileLinkCount</key>
-					<integer>1</integer>
-					<key>fileOptimalBlockSize</key>
-					<integer>1048576</integer>
 					<key>fileResourceForkLogicalSize</key>
 					<integer>436</integer>
 					<key>fileResourceForkPhysicalSize</key>
@@ -2658,8 +2647,6 @@
 					</dict>
 					<key>groupOwnerID</key>
 					<integer>20</integer>
-					<key>inode</key>
-					<integer>24</integer>
 					<key>modificationTime</key>
 					<dict>
 						<key>tv_nsec</key>
@@ -2669,7 +2656,7 @@
 					</dict>
 					<key>mountRelativePath</key>
 					<string>/Directory/SillyBalls</string>
-					<key>objectTag</key>
+					<key>fileSystemType</key>
 					<dict>
 						<key>udf</key>
 						<dict/>
@@ -2729,8 +2716,6 @@
 					<integer>88</integer>
 					<key>directoryMountStatus</key>
 					<integer>0</integer>
-					<key>directoryOptimalBlockSize</key>
-					<integer>1048576</integer>
 					<key>filename</key>
 					<string>DirectoryWithAttrs</string>
 					<key>finderInfo</key>
@@ -2783,8 +2768,6 @@
 					</dict>
 					<key>groupOwnerID</key>
 					<integer>20</integer>
-					<key>inode</key>
-					<integer>35</integer>
 					<key>modificationTime</key>
 					<dict>
 						<key>tv_nsec</key>
@@ -2794,7 +2777,7 @@
 					</dict>
 					<key>mountRelativePath</key>
 					<string>/DirectoryWithAttrs</string>
-					<key>objectTag</key>
+					<key>fileSystemType</key>
 					<dict>
 						<key>udf</key>
 						<dict/>
@@ -2859,8 +2842,6 @@
 					<integer>0</integer>
 					<key>fileLinkCount</key>
 					<integer>2</integer>
-					<key>fileOptimalBlockSize</key>
-					<integer>1048576</integer>
 					<key>fileResourceForkLogicalSize</key>
 					<integer>0</integer>
 					<key>fileResourceForkPhysicalSize</key>
@@ -2873,8 +2854,6 @@
 					<string>PlainFile</string>
 					<key>groupOwnerID</key>
 					<integer>20</integer>
-					<key>inode</key>
-					<integer>33</integer>
 					<key>modificationTime</key>
 					<dict>
 						<key>tv_nsec</key>
@@ -2884,7 +2863,7 @@
 					</dict>
 					<key>mountRelativePath</key>
 					<string>/Directory/PlainFile</string>
-					<key>objectTag</key>
+					<key>fileSystemType</key>
 					<dict>
 						<key>udf</key>
 						<dict/>

@@ -13,17 +13,26 @@ import DataParser
 import Glibc
 import SystemPackage
 
+#if Foundation
+import FoundationEssentials
+#endif
+
 public struct FileInfo: Sendable {
+    private enum XattrKeys {
+        static let finderInfo = "com.apple.FinderInfo"
+        static let isoTimestamp = "hfsfuse.record.date_created"
+
+        static let all = [finderInfo, isoTimestamp]
+    }
+
     public var filename: String? { self.path?.lastComponent?.string }
     public let path: FilePath?
-    public let mountRelativePath: FilePath?
     public var noFirmLinkPath: FilePath? { nil }
     public let deviceID: dev_t?
     public let realDeviceID: dev_t?
     public var realFileSystemID: fsid_t? { nil }
     public let fileSystemID: fsid_t?
     public let objectType: ObjectType?
-    public let objectTag: ObjectTag?
     public let inode: ino_t?
     public var linkID: UInt64? { nil }
     public var persistentID: UInt64? { nil }
@@ -34,7 +43,7 @@ public struct FileInfo: Sendable {
     public var modificationTime: timespec?
     public internal(set) var attributeModificationTime: timespec?
     public var accessTime: timespec?
-    public var finderInfo: FinderInfo? { nil }
+    public let finderInfo: FinderInfo?
 
     public var ownerID: uid_t?
     public var ownerUUID: uuid_t? { nil }
@@ -42,7 +51,11 @@ public struct FileInfo: Sendable {
     public var groupOwnerUUID: uuid_t? { nil }
     public var permissionsMode: mode_t?
     public var protectionFlags: UInt32? { nil }
-    public var accessControlList: AccessControlList?
+    public var accessControlList: AccessControlList? {
+        get { self.posixAccessControlList }
+        set { self.posixAccessControlList = newValue }
+    }
+    public var posixAccessControlList: POSIXAccessControlList?
 
     public var posixFlags: POSIXFlags?
     public var extendedFlags: ExtendedFlags?
@@ -61,7 +74,6 @@ public struct FileInfo: Sendable {
     public var fileResourceForkLogicalSize: off_t? { nil }
     public var fileResourceForkPhysicalSize: off_t? { nil }
     public var fileDeviceType: UInt32? { nil }
-    public let directoryLinkCount: UInt32?
     public let directoryEntryCount: UInt32?
     public let directoryMountStatus: MountStatus?
     public var directoryAllocationSize: off_t? { nil }
@@ -85,6 +97,7 @@ public struct FileInfo: Sendable {
     public let volumeMountedDevice: String?
     public var volumeEncodingsUsed: CUnsignedLongLong? { nil }
     public let volumeUUID: uuid_t?
+    public let volumeFileSystemType: FileSystemType?
     public let volumeFileSystemTypeName: String?
     public let volumeFileSystemSubtype: UInt32?
     public let volumeQuotaSize: off_t?
@@ -92,12 +105,10 @@ public struct FileInfo: Sendable {
 
     internal init(
         path: FilePath? = nil,
-        mountRelativePath: FilePath? = nil,
         deviceID: dev_t? = nil,
         realDeviceID: dev_t? = nil,
         fileSystemID: fsid_t? = nil,
         objectType: ObjectType? = nil,
-        objectTag: ObjectTag? = nil,
         inode: ino_t? = nil,
         creationTime: timespec? = nil,
         modificationTime: timespec? = nil,
@@ -106,14 +117,14 @@ public struct FileInfo: Sendable {
         ownerID: uid_t? = nil,
         groupOwnerID: gid_t? = nil,
         permissionsMode: mode_t? = nil,
-        accessControlList: AccessControlList? = nil,
+        posixAccessControlList: POSIXAccessControlList? = nil,
         posixFlags: POSIXFlags? = nil,
         extendedFlags: ExtendedFlags? = nil,
+        finderInfo: FinderInfo? = nil,
         fileLinkCount: UInt32? = nil,
         fileOptimalBlockSize: off_t? = nil,
         fileDataForkLogicalSize: off_t? = nil,
         fileDataForkPhysicalSize: off_t? = nil,
-        directoryLinkCount: UInt32? = nil,
         directoryEntryCount: UInt32? = nil,
         directoryMountStatus: MountStatus? = nil,
         volumeSize: off_t? = nil,
@@ -128,18 +139,17 @@ public struct FileInfo: Sendable {
         volumeMountFlags: UInt64? = nil,
         volumeMountedDevice: String? = nil,
         volumeUUID: uuid_t? = nil,
+        volumeFileSystemType: FileSystemType? = nil,
         volumeFileSystemTypeName: String? = nil,
         volumeFileSystemSubtype: UInt32? = nil,
         volumeQuotaSize: off_t? = nil,
         volumeReservedSize: off_t? = nil
     ) {
         self.path = path
-        self.mountRelativePath = mountRelativePath
         self.deviceID = deviceID
         self.realDeviceID = realDeviceID
         self.fileSystemID = fileSystemID
         self.objectType = objectType
-        self.objectTag = objectTag
         self.inode = inode
         self.creationTime = creationTime
         self.modificationTime = modificationTime
@@ -148,14 +158,14 @@ public struct FileInfo: Sendable {
         self.ownerID = ownerID
         self.groupOwnerID = groupOwnerID
         self.permissionsMode = permissionsMode
-        self.accessControlList = accessControlList
+        self.posixAccessControlList = posixAccessControlList
         self.posixFlags = posixFlags
         self.extendedFlags = extendedFlags
+        self.finderInfo = finderInfo
         self.fileLinkCount = fileLinkCount
         self.fileOptimalBlockSize = fileOptimalBlockSize
         self.fileDataForkLogicalSize = fileDataForkLogicalSize
         self.fileDataForkPhysicalSize = fileDataForkPhysicalSize
-        self.directoryLinkCount = directoryLinkCount
         self.directoryEntryCount = directoryEntryCount
         self.directoryMountStatus = directoryMountStatus
         self.volumeSize = volumeSize
@@ -170,6 +180,7 @@ public struct FileInfo: Sendable {
         self.volumeMountFlags = volumeMountFlags
         self.volumeMountedDevice = volumeMountedDevice
         self.volumeUUID = volumeUUID
+        self.volumeFileSystemType = volumeFileSystemType
         self.volumeFileSystemTypeName = volumeFileSystemTypeName
         self.volumeFileSystemSubtype = volumeFileSystemSubtype
         self.volumeQuotaSize = volumeQuotaSize
@@ -178,7 +189,7 @@ public struct FileInfo: Sendable {
     
     public init(at filePath: FilePath, keys: Keys) throws {
         let (statxBuf, statfsBuf) = try filePath.withPlatformString { path in
-            let statxMask: UInt32 = keys.rawValue.statx.reduce(0) { $0 | UInt32($1.value) }
+            let statxMask = keys.statxMask
 
             let statxBuf: statx? = if statxMask != 0 {
                 try callPOSIXFunction(expect: .zero) { statx(AT_FDCWD, path, 0, statxMask, $0) }
@@ -207,17 +218,39 @@ public struct FileInfo: Sendable {
             }
         }
 
-        let acl: AccessControlList? = if keys.contains(.accessControlList) {
-            try AccessControlList(at: fullPath)
+        let acl: POSIXAccessControlList?
+        if keys.contains(.accessControlList) {
+            do {
+                acl = try POSIXAccessControlList(at: fullPath)
+            } catch Errno.notSupported {
+                acl = nil
+            }
         } else {
-            nil
+            acl = nil
         }
 
-        try self.init(path: fullPath, statx: statxBuf, statfs: statfsBuf, accessControlList: acl, keys: keys)
+        let xattrs = Dictionary(uniqueKeysWithValues: XattrKeys.all.compactMap {
+            if let xattr = try? ExtendedAttribute(at: fullPath, key: $0) {
+                ($0, xattr.data)
+            } else if let xattr = try? ExtendedAttribute(at: fullPath, key: "user.\($0)") {
+                ($0, xattr.data)
+            } else {
+                nil
+            }
+        })
+
+        try self.init(
+            path: fullPath,
+            statx: statxBuf,
+            statfs: statfsBuf,
+            posixAccessControlList: acl,
+            xattrs: xattrs,
+            keys: keys
+        )
     }
 
     public init(at fileDescriptor: FileDescriptor, keys: Keys) throws {
-        let statxMask: UInt32 = keys.rawValue.statx.reduce(0) { $0 | UInt32($1.value) }
+        let statxMask = keys.statxMask
 
         let statxBuf: statx? = if statxMask != 0 {
             try callPOSIXFunction(expect: .zero) { statx(fileDescriptor.rawValue, "", AT_EMPTY_PATH, statxMask, $0) }
@@ -231,7 +264,7 @@ public struct FileInfo: Sendable {
             nil
         }
 
-        let path: FilePath? = if !keys.intersection([.filename, .fullPath, .mountRelativePath]).isEmpty {
+        let path: FilePath? = if !keys.intersection([.filename, .fullPath]).isEmpty {
             try withUnsafeTemporaryAllocation(byteCount: Int(PATH_MAX) + 1, alignment: 1) { buf in
                 try callPOSIXFunction(expect: .nonNegative) {
                     readlink("/proc/self/fd/\(fileDescriptor.rawValue)", buf.baseAddress!, buf.count)
@@ -245,28 +278,46 @@ public struct FileInfo: Sendable {
             nil
         }
 
-        let acl: AccessControlList? = if keys.contains(.accessControlList) {
-            try AccessControlList(at: fileDescriptor)
+        let acl: POSIXAccessControlList? = if keys.contains(.accessControlList) {
+            try POSIXAccessControlList(at: fileDescriptor)
         } else {
             nil
         }
 
-        try self.init(path: path, statx: statxBuf, statfs: statfsBuf, accessControlList: acl, keys: keys)
+        let xattrs = Dictionary(uniqueKeysWithValues: XattrKeys.all.compactMap {
+            if let xattr = try? ExtendedAttribute(at: fileDescriptor, key: $0) {
+                ($0, xattr.data)
+            } else if let xattr = try? ExtendedAttribute(at: fileDescriptor, key: "user.\($0)") {
+                ($0, xattr.data)
+            } else {
+                nil
+            }
+        })
+
+        try self.init(
+            path: path,
+            statx: statxBuf,
+            statfs: statfsBuf,
+            posixAccessControlList: acl,
+            xattrs: xattrs,
+            keys: keys
+        )
     }
 
     internal init(
         path: FilePath?,
-        statx: statx? = nil,
-        statfs: statfs? = nil,
-        accessControlList: AccessControlList? = nil,
-        keys: Keys? = nil
+        statx: statx?,
+        statfs: statfs?,
+        posixAccessControlList: POSIXAccessControlList?,
+        xattrs: [String : ContiguousArray<UInt8>],
+        keys: Keys?
     ) throws {
         self.path = path?.lexicallyNormalized()
-        self.accessControlList = accessControlList
+        self.posixAccessControlList = posixAccessControlList
 
         if let statx, (statx.stx_mask & UInt32(STATX_TYPE)) != 0 {
             self.objectType = ObjectType(mode_t(statx.stx_mode))
-            self.permissionsMode = mode_t(statx.stx_mode)
+            self.permissionsMode = mode_t(statx.stx_mode) & 0o7777
         } else {
             self.objectType = nil
             self.permissionsMode = nil
@@ -286,12 +337,10 @@ public struct FileInfo: Sendable {
         
         if let statx, (statx.stx_mask & UInt32(STATX_NLINK)) != 0 {
             self.fileLinkCount = statx.stx_nlink
-            self.directoryLinkCount = statx.stx_nlink
         } else {
             self.fileLinkCount = nil
-            self.directoryLinkCount = nil
         }
-        
+
         self.inode = if let statx, (statx.stx_mask & UInt32(STATX_INO)) != 0 {
             ino_t(statx.stx_ino)
         } else {
@@ -327,9 +376,11 @@ public struct FileInfo: Sendable {
         } else {
             nil
         }
-        
+
         self.creationTime = if let statx, (statx.stx_mask & UInt32(STATX_BTIME)) != 0 {
             timespec(tv_sec: time_t(statx.stx_btime.tv_sec), tv_nsec: time_t(statx.stx_btime.tv_nsec))
+        } else if let timeBytes = xattrs[XattrKeys.isoTimestamp], let time = Self.parseISO8601Time(timeBytes) {
+            time
         } else {
             nil
         }
@@ -456,8 +507,8 @@ public struct FileInfo: Sendable {
             nil
         }
         
-        self.objectTag = if let statfs, statfs.f_type != 0 {
-            ObjectTag(statfs.f_type)
+        self.volumeFileSystemType = if let statfs, statfs.f_type != 0 {
+            FileSystemType(UInt32(statfs.f_type))
         } else {
             nil
         }
@@ -474,8 +525,8 @@ public struct FileInfo: Sendable {
             nil
         }
 
-        self.mountRelativePath = if let path, keys?.contains(.mountRelativePath) == true {
-            try Self.calculateRelativePath(path: path)
+        self.finderInfo = if let finderInfo = xattrs[XattrKeys.finderInfo] {
+            FinderInfo(data: finderInfo, objectType: self.objectType ?? .regular)
         } else {
             nil
         }
@@ -487,6 +538,44 @@ public struct FileInfo: Sendable {
         self.volumeUUID = nil
         self.volumeFileSystemSubtype = nil
         self.volumeQuotaSize = nil
+    }
+
+    private static func parseISO8601Time(_ isoTime: some Collection<UInt8>) -> timespec? {
+#if Foundation
+        let dateString = String(decoding: isoTime, as: UTF8.self)
+        guard let date = try? Date(dateString, strategy: .iso8601) else { return nil }
+        let (sec, fraction) = modf(date.timeIntervalSince1970)
+
+        return timespec(tv_sec: Int(sec), tv_nsec: Int(fraction * 1_000_000_000.0))
+#else
+        let wholeSecondTime: ContiguousArray<UInt8>
+        let nsec: Int
+
+        if let decimalIndex = isoTime.firstIndex(of: 0x2e) {
+            var index = isoTime.index(after: decimalIndex)
+            var place = 100_000_000
+            var _nsec = 0
+
+            while index < isoTime.endIndex, case let char = isoTime[index], (0x30...0x39).contains(char) {
+                _nsec += place * Int(char - 0x30)
+                index = isoTime.index(after: index)
+                place /= 10
+            }
+
+            wholeSecondTime = ContiguousArray(isoTime[..<decimalIndex]) + ContiguousArray(isoTime[index...]) + [0]
+            nsec = _nsec
+        } else {
+            wholeSecondTime = ContiguousArray(isoTime) + [0]
+            nsec = 0
+        }
+
+        return wholeSecondTime.withUnsafeBytes { isoBytes -> timespec? in
+            var time = tm()
+            guard strptime(isoBytes.baseAddress, "%Y-%m-%dT%H:%M:%S%z", &time) != nil else { return nil }
+
+            return timespec(tv_sec: timegm(&time) + time.tm_gmtoff, tv_nsec: nsec)
+        }
+#endif
     }
 
     private static func countDirectoryEntries(path: FilePath) throws -> UInt32 {
@@ -511,10 +600,6 @@ public struct FileInfo: Sendable {
         }
 
         return count
-    }
-
-    private static func calculateRelativePath(path: FilePath) throws -> FilePath {
-        return ""
     }
 
     private static func getMountPoint(statxBuf: statx) throws -> FilePath {
