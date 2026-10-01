@@ -47,14 +47,6 @@ package func versionCheck(_ version: Int) -> Bool { emulatedVersion >= version }
 @inline(__always) package func versionCheck(_: Int) -> Bool { true }
 #endif
 
-func fsidsEqual(_ lhs: fsid_t?, _ rhs: fsid_t?) -> Bool {
-#if canImport(Darwin)
-    lhs?.val.0 == rhs?.val.0 && lhs?.val.1 == rhs?.val.1
-#elseif canImport(Glibc)
-    lhs?.__val.0 == rhs?.__val.0 && lhs?.__val.1 == rhs?.__val.1
-#endif
-}
-
 func timesEqual(_ l: timespec?, _ r: timespec?) -> Bool {
     l?.tv_sec == r?.tv_sec && l?.tv_nsec == r?.tv_nsec
 }

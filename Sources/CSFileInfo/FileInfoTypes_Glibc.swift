@@ -43,6 +43,19 @@ extension FileInfo {
         }
     }
 
+    public struct FileSystemID: Equatable, Sendable {
+        public let fsid: fsid_t
+        public var major: Int32 { self.fsid.__val.0 }
+        public var minor: Int32 { self.fsid.__val.1 }
+
+        public init(major: Int32, minor: Int32) { self.fsid = fsid_t(__val: (major, minor)) }
+        public init(fsid: fsid_t) { self.fsid = fsid }
+
+        public static func ==(id1: FileSystemID, id2: FileSystemID) -> Bool {
+            id1.fsid.__val == id2.fsid.__val
+        }
+    }
+
     public enum FileSystemType: Codable, Hashable, Sendable {
         private enum Magic {
             static let fuse: UInt32 = 0x65735546

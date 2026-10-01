@@ -25,8 +25,8 @@ public struct FileInfo: Sendable {
     public let noFirmLinkPathString: String?
     public let deviceID: dev_t?
     public let realDeviceID: dev_t?
-    public let fileSystemID: fsid_t?
-    public let realFileSystemID: fsid_t?
+    public let fileSystemID: FileSystemID?
+    public let realFileSystemID: FileSystemID?
     public let objectType: ObjectType?
     public let objectTag: ObjectTag?
     public let linkID: UInt64?
@@ -176,8 +176,8 @@ public struct FileInfo: Sendable {
         noFirmLinkPathString: String? = nil,
         deviceID: dev_t? = nil,
         realDeviceID: dev_t? = nil,
-        fileSystemID: fsid_t? = nil,
-        realFileSystemID: fsid_t? = nil,
+        fileSystemID: FileSystemID? = nil,
+        realFileSystemID: FileSystemID? = nil,
         objectType: ObjectType? = nil,
         objectTag: ObjectTag? = nil,
         linkID: UInt64? = nil,
@@ -544,7 +544,9 @@ public struct FileInfo: Sendable {
 
         self.filename = try readString(group: attrs.commonattr, tag: ATTR_CMN_NAME)
         self.deviceID = try readAttr(group: attrs.commonattr, tag: ATTR_CMN_DEVID, type: dev_t.self)
-        self.fileSystemID = try readAttr(group: attrs.commonattr, tag: ATTR_CMN_FSID, type: fsid_t.self)
+        self.fileSystemID = try readAttr(group: attrs.commonattr, tag: ATTR_CMN_FSID, type: fsid_t.self).map {
+            FileSystemID(fsid: $0)
+        }
         let objectType = try readAttr(group: attrs.commonattr, tag: ATTR_CMN_OBJTYPE, type: fsobj_type_t.self).map {
             ObjectType($0)
         }
@@ -682,7 +684,9 @@ public struct FileInfo: Sendable {
         let linkID64 = try readAttr(group: attrs.forkattr, tag: ATTR_CMNEXT_LINKID, type: UInt64.self)
         self.noFirmLinkPathString = try readString(group: attrs.forkattr, tag: ATTR_CMNEXT_NOFIRMLINKPATH)
         self.realDeviceID = try readAttr(group: attrs.forkattr, tag: ATTR_CMNEXT_REALDEVID, type: dev_t.self)
-        self.realFileSystemID = try readAttr(group: attrs.forkattr, tag: ATTR_CMNEXT_REALFSID, type: fsid_t.self)
+        self.realFileSystemID = try readAttr(group: attrs.forkattr, tag: ATTR_CMNEXT_REALFSID, type: fsid_t.self).map {
+            FileSystemID(fsid: $0)
+        }
         self.cloneID = try readAttr(group: attrs.forkattr, tag: ATTR_CMNEXT_CLONEID, type: UInt64.self)
         self.extendedFlags = try readAttr(group: attrs.forkattr, tag: ATTR_CMNEXT_EXT_FLAGS, type: UInt64.self).map {
             ExtendedFlags(rawValue: $0)

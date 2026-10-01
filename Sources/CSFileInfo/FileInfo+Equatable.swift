@@ -60,6 +60,7 @@ extension FileInfo: Equatable {
 #else
         case let path as KeyPath<Self, FileSystemType?> & Sendable: { $0[keyPath: path] == $1[keyPath: path] }
 #endif
+        case let path as KeyPath<Self, FileSystemID?> & Sendable: { $0[keyPath: path] == $1[keyPath: path] }
         case let path as KeyPath<Self, ObjectType?> & Sendable: { $0[keyPath: path] == $1[keyPath: path] }
         case let path as KeyPath<Self, POSIXFlags?> & Sendable: { $0[keyPath: path] == $1[keyPath: path] }
         case let path as KeyPath<Self, ExtendedFlags?> & Sendable: { $0[keyPath: path] == $1[keyPath: path] }
@@ -67,7 +68,6 @@ extension FileInfo: Equatable {
         case let path as KeyPath<Self, UserAccess?> & Sendable: { $0[keyPath: path] == $1[keyPath: path] }
         case let path as KeyPath<Self, Keys?> & Sendable: { $0[keyPath: path] == $1[keyPath: path] }
 
-        case let path as KeyPath<Self, fsid_t?> & Sendable: { fsidsEqual($0[keyPath: path], $1[keyPath: path]) }
         case let path as KeyPath<Self, timespec?> & Sendable: { timesEqual($0[keyPath: path], $1[keyPath: path]) }
         case let path as KeyPath<Self, uuid_t?> & Sendable: { uuidsEqual($0[keyPath: path], $1[keyPath: path]) }
         default: fatalError("Programming Error: unhandled key path type \($0)")
