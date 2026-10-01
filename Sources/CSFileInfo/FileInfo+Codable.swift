@@ -99,29 +99,6 @@ extension FileInfo: Codable {
         case fileSystemValidKeys
     }
 
-    private struct FSIDWrapper: Codable, Sendable {
-        let val0: Int32
-        let val1: Int32
-
-        init(fsid: fsid_t) {
-#if canImport(Darwin)
-            val0 = fsid.val.0
-            val1 = fsid.val.1
-#else
-            val0 = fsid.__val.0
-            val1 = fsid.__val.1
-#endif
-        }
-
-        var fsid: fsid_t {
-#if canImport(Darwin)
-            fsid_t(val: (self.val0, self.val1))
-#else
-            fsid_t(__val: (self.val0, self.val1))
-#endif
-        }
-    }
-
     private struct TimespecWrapper: Codable, Sendable {
         let tv_sec: time_t
         let tv_nsec: CLong
@@ -168,7 +145,7 @@ extension FileInfo: Codable {
 
         self.deviceID = try container.decodeIfPresent(dev_t.self, forKey: .deviceID)
         self.realDeviceID = try container.decodeIfPresent(dev_t.self, forKey: .realDeviceID)
-        self.fileSystemID = try container.decodeIfPresent(FSIDWrapper.self, forKey: .fileSystemID)?.fsid
+        self.fileSystemID = try container.decodeIfPresent(FileSystemID.self, forKey: .fileSystemID)
         self.creationTime = try container.decodeIfPresent(TimespecWrapper.self, forKey: .creationTime)?.toTimespec
         self.modificationTime = try container.decodeIfPresent(TimespecWrapper.self, forKey: .modificationTime)?.toTimespec
         self.attributeModificationTime = try container.decodeIfPresent(
@@ -247,7 +224,7 @@ extension FileInfo: Codable {
         self.pathString = try container.decodeIfPresent(String.self, forKey: .path)
         self.mountRelativePathString = try container.decodeIfPresent(String.self, forKey: .mountRelativePath)
         self.noFirmLinkPathString = try container.decodeIfPresent(String.self, forKey: .noFirmLinkPath)
-        self.realFileSystemID = try container.decodeIfPresent(FSIDWrapper.self, forKey: .realFileSystemID)?.fsid
+        self.realFileSystemID = try container.decodeIfPresent(FileSystemID.self, forKey: .realFileSystemID)
         self.objectType = try container.decodeIfPresent(ObjectType.self, forKey: .objectType)
         self.linkID = try container.decodeIfPresent(UInt64.self, forKey: .linkID)
         self.persistentID = try container.decodeIfPresent(UInt64.self, forKey: .persistentID)
@@ -305,8 +282,8 @@ extension FileInfo: Codable {
         try container.encodeIfPresent(self.filename, forKey: .filename)
         try container.encodeIfPresent(self.deviceID, forKey: .deviceID)
         try container.encodeIfPresent(self.realDeviceID, forKey: .realDeviceID)
-        try container.encodeIfPresent(self.fileSystemID.map { FSIDWrapper(fsid: $0) }, forKey: .fileSystemID)
-        try container.encodeIfPresent(self.realFileSystemID.map { FSIDWrapper(fsid: $0) }, forKey: .realFileSystemID)
+        try container.encodeIfPresent(self.fileSystemID, forKey: .fileSystemID)
+        try container.encodeIfPresent(self.realFileSystemID, forKey: .realFileSystemID)
         try container.encodeIfPresent(self.objectType, forKey: .objectType)
 #if canImport(Darwin)
         try container.encodeIfPresent(self.objectTag, forKey: .objectTag)
@@ -448,6 +425,27 @@ extension FileInfo.Keys: Codable {
     }
 }
 #endif
+
+extension FileInfo.FileSystemID: Codable {
+    public enum CodingKeys: CodingKey {
+        case major
+        case minor
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let major = try container.decode(Int32.self, forKey: .major)
+        let minor = try container.decode(Int32.self, forKey: .minor)
+
+        self.init(major: major, minor: minor)
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(self.major, forKey: .major)
+        try container.encode(self.minor, forKey: .minor)
+    }
+}
 
 private struct AnyKey: CodingKey {
     var stringValue: String

@@ -30,8 +30,8 @@ public struct FileInfo: Sendable {
     public var noFirmLinkPath: FilePath? { nil }
     public let deviceID: dev_t?
     public let realDeviceID: dev_t?
-    public var realFileSystemID: fsid_t? { nil }
-    public let fileSystemID: fsid_t?
+    public var realFileSystemID: FileSystemID? { nil }
+    public let fileSystemID: FileSystemID?
     public let objectType: ObjectType?
     public let inode: ino_t?
     public var linkID: UInt64? { nil }
@@ -107,7 +107,7 @@ public struct FileInfo: Sendable {
         path: FilePath? = nil,
         deviceID: dev_t? = nil,
         realDeviceID: dev_t? = nil,
-        fileSystemID: fsid_t? = nil,
+        fileSystemID: FileSystemID? = nil,
         objectType: ObjectType? = nil,
         inode: ino_t? = nil,
         creationTime: timespec? = nil,
@@ -514,7 +514,7 @@ public struct FileInfo: Sendable {
         }
         
         self.fileSystemID = if let statfs, statfs.f_fsid.__val.0 != 0 || statfs.f_fsid.__val.1 != 0 {
-            statfs.f_fsid
+            FileSystemID(fsid: statfs.f_fsid)
         } else {
             nil
         }

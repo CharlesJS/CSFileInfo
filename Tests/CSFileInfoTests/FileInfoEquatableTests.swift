@@ -21,21 +21,8 @@ import SystemPackage
 
 @Suite
 struct FileInfoEquatableTests {
-    private var fileSystemID: fsid_t? {
-#if canImport(Darwin)
-        fsid_t(val: (345, 456))
-#else
-        fsid_t(__val: (345, 456))
-#endif
-    }
-
-    private var realFileSystemID: fsid_t? {
-#if canImport(Darwin)
-        fsid_t(val: (567, 678))
-#else
-        fsid_t(__val: (567, 678))
-#endif
-    }
+    private let fileSystemID = FileInfo.FileSystemID(major: 345, minor: 456)
+    private let realFileSystemID = FileInfo.FileSystemID(major: 567, minor: 678)
 
 #if canImport(Darwin)
     private let objectTag: FileInfo.ObjectTag = .afp
@@ -337,8 +324,8 @@ struct FileInfoEquatableTests {
           "fileResourceForkLogicalSize" : 5678901,
           "fileResourceForkPhysicalSize" : 6789012,
           "fileSystemID" : {
-            "val0" : 345,
-            "val1" : 456
+            "major" : 345,
+            "minor" : 456
           },
           "fileSystemValidCapabilities" : {
             "format" : 524820,
@@ -412,8 +399,8 @@ struct FileInfoEquatableTests {
           "protectionFlags" : 567890,
           "realDeviceID" : 234,
           "realFileSystemID" : {
-            "val0" : 567,
-            "val1" : 678
+            "major" : 567,
+            "minor" : 678
           },
           "recursiveGenerationCount" : 234567,
           "script" : 4567,
@@ -481,8 +468,8 @@ struct FileInfoEquatableTests {
           "fileLinkCount" : 789012,
           "fileOptimalBlockSize" : 1234567,
           "fileSystemID" : {
-            "val0" : 345,
-            "val1" : 456
+            "major" : 345,
+            "minor" : 456
           },
           "fileTotalLogicalSize" : 3456789,
           "fileTotalPhysicalSize" : 4567890,

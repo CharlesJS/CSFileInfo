@@ -42,6 +42,13 @@ struct FileInfoTypesTests {
     }
 
     @Test
+    func testFileSystemIDEquality() {
+        #expect(FileInfo.FileSystemID(major: 1, minor: 2) == FileInfo.FileSystemID(major: 1, minor: 2))
+        #expect(FileInfo.FileSystemID(major: 1, minor: 2) != FileInfo.FileSystemID(major: 2, minor: 2))
+        #expect(FileInfo.FileSystemID(major: 1, minor: 2) != FileInfo.FileSystemID(major: 1, minor: 1))
+    }
+
+    @Test
     func testFileSystemTypeInitialization() {
 #if canImport(Darwin)
         #expect(FileInfo.ObjectTag(VT_NON.rawValue) == .none)
