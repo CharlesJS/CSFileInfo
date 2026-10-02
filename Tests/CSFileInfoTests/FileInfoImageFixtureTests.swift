@@ -118,6 +118,17 @@ struct ImageFixtureTests {
         }
     }
 
+    @Test(arguments: withFixtures.images)
+    func testFileSystemIDs(fixture: MountTrait<ImageInfo>.DiskImage) throws {
+        let rootInfo = try FileInfo(at: FilePath("/"), keys: .fileSystemID)
+        let rootFSID = try #require(rootInfo.fileSystemID)
+        #expect(rootFSID.major != 0)
+
+        let info = try FileInfo(at: FilePath(fixture.mountPoint.path(percentEncoded: false)), keys: .fileSystemID)
+        let fsid = info.fileSystemID
+        #expect(fsid != rootFSID)
+    }
+
     private static func adjustInfoDicts(
         url: URL,
         fileSystem: DiskImageHelper.FileSystem,
