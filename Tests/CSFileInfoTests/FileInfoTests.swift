@@ -399,26 +399,10 @@ struct FileInfoReadWriteTests {
                 }?.code == .fileReadNoSuchFile
             )
 
-            let lsof = Process()
-            let pipe = Pipe()
-            let handle = pipe.fileHandleForReading
-            lsof.standardOutput = pipe
-            lsof.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
-            lsof.arguments = ["lsof"]
-            try lsof.run()
-            lsof.waitUntilExit()
-
-            let lines = try String(data: handle.readToEnd()!, encoding: .utf8)!.components(separatedBy: "\n")
-            for eachLine in lines {
-                if eachLine.contains(mountPoint.path) {
-                    print("lsof: \(eachLine)")
-                }
-            }
-
             // Remount to force info to refresh
             try dmgHelper.unmountImage(mountPoint: mountPoint, devEntry: devEntry)
             let (newMountPoint, _, newDevEntry) = try dmgHelper.mountImage(url: imageURL, readOnly: false)
-            defer { try? dmgHelper.unmountImage(mountPoint: mountPoint, devEntry: newDevEntry) }
+            defer { try? dmgHelper.unmountImage(mountPoint: newMountPoint, devEntry: newDevEntry) }
 
             #expect(newMountPoint != mountPoint)
 
