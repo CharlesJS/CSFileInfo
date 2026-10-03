@@ -512,7 +512,7 @@ public struct FileInfo: Sendable {
         } else {
             nil
         }
-        
+
         self.fileSystemID = if let statfs, statfs.f_fsid.__val.0 != 0 || statfs.f_fsid.__val.1 != 0 {
             FileSystemID(fsid: statfs.f_fsid)
         } else {
