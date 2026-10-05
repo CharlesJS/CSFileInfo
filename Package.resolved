@@ -1,5 +1,5 @@
 {
-  "originHash" : "cde1f04400172187a583a79bb02e44e64d7993993abe74e95826f972c28036d5",
+  "originHash" : "5029395acbbaba01b60e5cc61ae10c1d47e486ca8c929f687918a12d6cbefa2d",
   "pins" : [
     {
       "identity" : "cserrors",
@@ -60,8 +60,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/CharlesJS/test-helpers.git",
       "state" : {
-        "revision" : "634fcf521953a7c0ebfd32472d86bfa6a37fa27e",
-        "version" : "0.3.9"
+        "revision" : "e462cf5ff96212269927fef32ae7676d4cd6eb39",
+        "version" : "0.3.10"
       }
     }
   ],

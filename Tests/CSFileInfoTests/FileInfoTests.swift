@@ -400,9 +400,10 @@ struct FileInfoReadWriteTests {
             )
 
             // Remount to force info to refresh
-            try dmgHelper.unmountImage(mountPoint: mountPoint, devEntry: devEntry)
+            try ejectWithDiagnostics(device: devEntry.path(percentEncoded: false))
+//            try dmgHelper.unmountImage(mountPoint: mountPoint, devEntry: devEntry)
             let (newMountPoint, _, newDevEntry) = try dmgHelper.mountImage(url: imageURL, readOnly: false)
-            defer { try? dmgHelper.unmountImage(mountPoint: mountPoint, devEntry: newDevEntry) }
+            defer { try? dmgHelper.unmountImage(mountPoint: newMountPoint, devEntry: newDevEntry) }
 
             #expect(newMountPoint != mountPoint)
 
@@ -412,4 +413,134 @@ struct FileInfoReadWriteTests {
         }
 #endif
     }
+}
+
+// MARK: delete all below this: for testing only
+
+struct CommandResult {
+    let status: Int32
+    let output: String
+}
+
+@discardableResult
+func run(_ path: String, _ args: [String]) throws -> CommandResult {
+    let p = Process()
+    p.executableURL = URL(fileURLWithPath: path)
+    p.arguments = args
+    let pipe = Pipe()
+    p.standardOutput = pipe
+    p.standardError = pipe
+    try p.run()
+    // Read before waiting, or a full pipe buffer can deadlock the child
+    let data = pipe.fileHandleForReading.readDataToEndOfFile()
+    p.waitUntilExit()
+    return CommandResult(status: p.terminationStatus,
+                         output: String(decoding: data, as: UTF8.self))
+}
+
+func plist(_ args: [String]) -> [String: Any]? {
+    guard let r = try? run("/usr/sbin/diskutil", args), r.status == 0,
+          let obj = try? PropertyListSerialization.propertyList(
+            from: Data(r.output.utf8), format: nil) else { return nil }
+    return obj as? [String: Any]
+}
+
+// MARK: - Background recorders
+
+final class Recorder {
+    private let process = Process()
+    private let handle: FileHandle
+
+    init(_ path: String, _ args: [String], log: URL) throws {
+        FileManager.default.createFile(atPath: log.path, contents: nil)
+        handle = try FileHandle(forWritingTo: log)
+        process.executableURL = URL(fileURLWithPath: path)
+        process.arguments = args
+        process.standardOutput = handle
+        process.standardError = handle
+        try process.run()
+    }
+
+    func stop() {
+        if process.isRunning { process.interrupt() }   // SIGINT, so tools flush and exit cleanly
+        process.waitUntilExit()
+        try? handle.close()
+    }
+}
+
+// MARK: - Eject with diagnostics
+
+enum EjectError: Error { case failed(diagnostics: URL) }
+
+func ejectWithDiagnostics(device: String, attempts: Int = 6) throws {
+    let base = ProcessInfo.processInfo.environment["RUNNER_TEMP"] ?? NSTemporaryDirectory()
+    let diag = URL(fileURLWithPath: base).appendingPathComponent("eject-diag")
+    try FileManager.default.createDirectory(at: diag, withIntermediateDirectories: true)
+
+    var recorders: [Recorder] = []
+    recorders.append(try Recorder("/usr/sbin/diskutil", ["activity"],
+                                  log: diag.appendingPathComponent("da-activity.log")))
+    recorders.append(try Recorder("/usr/bin/log",
+                                  ["stream", "--level", "debug", "--predicate",
+                                   "process == \"diskarbitrationd\" OR subsystem == \"com.apple.DiskArbitration\""],
+                                  log: diag.appendingPathComponent("da-log.log")))
+    // GitHub-hosted macOS runners allow passwordless sudo; -n fails fast instead of prompting
+    recorders.append(try Recorder("/usr/bin/sudo",
+                                  ["-n", "/usr/bin/fs_usage", "-w", "-f", "filesys", "-e"],
+                                  log: diag.appendingPathComponent("fs_usage.log")))
+    defer { recorders.forEach { $0.stop() } }
+    Thread.sleep(forTimeInterval: 1)   // let the recorders attach
+
+    var lastOutput = ""
+    for attempt in 1...attempts {
+        let r = try run("/usr/sbin/diskutil", ["eject", device])
+        if r.status == 0 { return }
+        lastOutput = r.output
+        print("eject attempt \(attempt) failed: \(r.output)")
+        Thread.sleep(forTimeInterval: Double(attempt * 2))
+    }
+
+    // Every retry failed: snapshot the state before forcing anything
+    try snapshot(device: device, ejectOutput: lastOutput,
+                 to: diag.appendingPathComponent("failure-snapshot.txt"))
+
+    let forced = try run("/usr/sbin/diskutil", ["unmountDisk", "force", device])
+    if forced.status == 0, try run("/usr/sbin/diskutil", ["eject", device]).status == 0 {
+        // It came off, but only by force: still worth failing so the diagnostics get looked at
+    }
+    throw EjectError.failed(diagnostics: diag)
+}
+
+func snapshot(device: String, ejectOutput: String, to file: URL) throws {
+    var out = "=== last eject output ===\n\(ejectOutput)\n"
+
+    func section(_ title: String, _ path: String, _ args: [String]) {
+        let r = try? run(path, args)
+        out += "=== \(title) ===\n\(r?.output ?? "(failed to run)")\n"
+    }
+
+    // Every disk on this device: the whole disk plus its volumes
+    let all = (plist(["list", "-plist", device])?["AllDisks"] as? [String]) ?? []
+    var mountPoints: [String] = []
+    for disk in all {
+        section("diskutil info \(disk)", "/usr/sbin/diskutil", ["info", "/dev/\(disk)"])
+        if let mp = plist(["info", "-plist", "/dev/\(disk)"])?["MountPoint"] as? String,
+           !mp.isEmpty {
+            mountPoints.append(mp)
+        }
+    }
+
+    // Use the mount points as they are now, since a rename may have moved them
+    for mp in mountPoints {
+        section("open files on \(mp)", "/usr/bin/sudo", ["-n", "/usr/sbin/lsof", "+f", "--", mp])
+        section("spotlight status \(mp)", "/usr/bin/mdutil", ["-s", mp])
+    }
+
+    section("mount table", "/sbin/mount", [])
+    section("attached images", "/usr/sbin/diskutil", ["image", "info"])
+    section("indexer/scanner processes", "/bin/sh",
+            ["-c", "ps aux | grep -Ei 'mds|mdworker|xprotect|fseventsd' | grep -v grep"])
+    section("non-forced unmount attempt", "/usr/sbin/diskutil", ["unmountDisk", device])
+
+    try out.write(to: file, atomically: true, encoding: .utf8)
 }
