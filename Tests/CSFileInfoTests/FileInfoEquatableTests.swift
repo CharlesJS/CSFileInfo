@@ -217,13 +217,13 @@ struct FileInfoEquatableTests {
     func testEquality() throws {
         func testChange<T>(_ keyPath: WritableKeyPath<FileInfo, T?>, to value: T) {
             var info = self.referenceInfo
-            #expect(info == self.referenceInfo, "\(info.difference(from: self.referenceInfo))")
+            #expect(info == self.referenceInfo, "Mismatch: \(info.difference(from: self.referenceInfo))")
 
             info[keyPath: keyPath] = nil as T?
             #expect(info != self.referenceInfo)
 
             info[keyPath: keyPath] = self.referenceInfo[keyPath: keyPath]
-            #expect(info == self.referenceInfo, "\(info.difference(from: self.referenceInfo))")
+            #expect(info == self.referenceInfo, "Mismatch: \(info.difference(from: self.referenceInfo))")
 
             info[keyPath: keyPath] = value
             #expect(info != self.referenceInfo)

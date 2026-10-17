@@ -402,7 +402,7 @@ struct FileInfoReadWriteTests {
             // Remount to force info to refresh
             try dmgHelper.unmountImage(mountPoint: mountPoint, devEntry: devEntry)
             let (newMountPoint, _, newDevEntry) = try dmgHelper.mountImage(url: imageURL, readOnly: false)
-            defer { try? dmgHelper.unmountImage(mountPoint: mountPoint, devEntry: newDevEntry) }
+            defer { try? dmgHelper.unmountImage(mountPoint: newMountPoint, devEntry: newDevEntry) }
 
             #expect(newMountPoint != mountPoint)
 
